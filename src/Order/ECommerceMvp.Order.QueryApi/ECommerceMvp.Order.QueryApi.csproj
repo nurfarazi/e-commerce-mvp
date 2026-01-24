@@ -8,6 +8,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\Shared\ECommerceMvp.Shared.Domain\ECommerceMvp.Shared.Domain.csproj" />
+    <ProjectReference Include="..\..\Shared\ECommerceMvp.Shared.Application\ECommerceMvp.Shared.Application.csproj" />
     <ProjectReference Include="..\ECommerceMvp.Order.Domain\ECommerceMvp.Order.Domain.csproj" />
   </ItemGroup>
 

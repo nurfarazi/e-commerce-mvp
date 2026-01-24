@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using ECommerceMvp.Shared.Application;
 using ECommerceMvp.Shared.Domain;
 using ECommerceMvp.Order.Application;
 
@@ -44,7 +45,9 @@ public class OrdersController : ControllerBase
             ProductSnapshots = request.ProductSnapshots
         };
 
-        var result = await _commandBus.SendAsync(command, cancellationToken).ConfigureAwait(false);
+        var result = await _commandBus.SendAsync<PlaceOrderCommand, PlaceOrderResponse>(
+            command,
+            cancellationToken).ConfigureAwait(false);
 
         if (result.Success)
         {

@@ -65,10 +65,10 @@ public class RabbitMqEventPublisher : IEventPublisher, IDisposable
             foreach (var envelope in envelopes)
             {
                 // Extract bounded context from event type (e.g., "ECommerceMvp.ProductCatalog.Domain.ProductCreatedEvent" -> "ProductCatalog")
-                var eventTypeParts = envelope.Event.EventType.Split('.');
+                var eventTypeParts = envelope.DomainEvent.EventType.Split('.');
                 var boundedContext = eventTypeParts.Length > 1 ? eventTypeParts[1] : eventTypeParts[0];
                 var exchangeName = $"{boundedContext}.events";
-                var routingKey = envelope.Event.EventType;
+                var routingKey = envelope.DomainEvent.EventType;
 
                 // Declare fanout exchange
                 _channel.ExchangeDeclare(
@@ -78,14 +78,14 @@ public class RabbitMqEventPublisher : IEventPublisher, IDisposable
                     autoDelete: false);
 
                 // Serialize payload separately with concrete type to preserve all properties
-                var payloadJson = JsonSerializer.Serialize(envelope.Event, envelope.Event.GetType());
+                var payloadJson = JsonSerializer.Serialize(envelope.DomainEvent, envelope.DomainEvent.GetType());
                 using var payloadDoc = JsonDocument.Parse(payloadJson);
 
                 var messageBody = JsonSerializer.Serialize(new
                 {
-                    EventId = envelope.Event.EventId,
-                    EventType = envelope.Event.EventType,
-                    EventVersion = envelope.Event.EventVersion,
+                    EventId = envelope.DomainEvent.EventId,
+                    EventType = envelope.DomainEvent.EventType,
+                    EventVersion = envelope.DomainEvent.EventVersion,
                     Payload = payloadDoc.RootElement,
                     Metadata = new
                     {
@@ -102,7 +102,7 @@ public class RabbitMqEventPublisher : IEventPublisher, IDisposable
                 properties.ContentType = "application/json";
                 properties.Headers = new Dictionary<string, object?>
                 {
-                    ["EventId"] = envelope.Event.EventId,
+                    ["EventId"] = envelope.DomainEvent.EventId,
                     ["CorrelationId"] = envelope.CorrelationId,
                     ["CausationId"] = envelope.CausationId,
                     ["TenantId"] = envelope.TenantId,
@@ -118,7 +118,7 @@ public class RabbitMqEventPublisher : IEventPublisher, IDisposable
 
                 _logger.LogDebug(
                     "Published event {EventType} EventId={EventId} to exchange {ExchangeName}",
-                    envelope.Event.EventType, envelope.Event.EventId, exchangeName);
+                    envelope.DomainEvent.EventType, envelope.DomainEvent.EventId, exchangeName);
             }
         }, cancellationToken).ConfigureAwait(false);
     }

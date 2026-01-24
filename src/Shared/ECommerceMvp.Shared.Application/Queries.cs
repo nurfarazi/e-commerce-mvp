@@ -24,6 +24,17 @@ public interface IQueryService
     Task<TResult?> QueryAsync<TResult>(string collection, object? filter = null, CancellationToken cancellationToken = default);
     Task<IEnumerable<TResult>> QueryManyAsync<TResult>(string collection, object? filter = null, CancellationToken cancellationToken = default);
 }
+
+/// <summary>
+/// Read model store interface for CQRS projections.
+/// </summary>
+public interface IReadModelStore<T> where T : class
+{
+    Task<T?> GetByIdAsync(string id, CancellationToken cancellationToken = default);
+    Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task UpsertAsync(string id, T model, CancellationToken cancellationToken = default);
+    Task DeleteAsync(string id, CancellationToken cancellationToken = default);
+}
 /// <summary>
 /// Query bus for sending queries to handlers.
 /// </summary>

@@ -15,13 +15,13 @@ COPY ["src/ProductCatalog/ECommerceMvp.ProductCatalog.Infrastructure/ECommerceMv
 COPY ["src/ProductCatalog/ECommerceMvp.ProductCatalog.QueryApi/ECommerceMvp.ProductCatalog.QueryApi.csproj", "src/ProductCatalog/ECommerceMvp.ProductCatalog.QueryApi/"]
 
 # Restore dependencies
-RUN dotnet restore "ECommerceMvp.sln"
+RUN dotnet restore "src/ProductCatalog/ECommerceMvp.ProductCatalog.QueryApi/ECommerceMvp.ProductCatalog.QueryApi.csproj"
 
 # Copy full source
 COPY . .
 
 # Build
-RUN dotnet build "ECommerceMvp.sln" -c Release -o /app/build
+RUN dotnet build "src/ProductCatalog/ECommerceMvp.ProductCatalog.QueryApi/ECommerceMvp.ProductCatalog.QueryApi.csproj" -c Release -o /app/build
 
 # Publish
 FROM build AS publish

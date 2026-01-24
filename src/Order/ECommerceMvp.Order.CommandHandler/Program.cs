@@ -1,4 +1,5 @@
 using ECommerceMvp.Order.CommandHandler;
+using ECommerceMvp.Shared.Application;
 using ECommerceMvp.Shared.Domain;
 using ECommerceMvp.Order.Application;
 using ECommerceMvp.Order.Infrastructure;

@@ -11,6 +11,7 @@ public class MongoIdempotencyStore : IIdempotencyStore
 {
     private readonly IMongoCollection<ProcessedCommandDocument> _commandCollection;
     private readonly IMongoCollection<ProcessedEventDocument> _eventCollection;
+    private readonly IMongoCollection<IdempotencyKeyDocument> _idempotencyCollection;
     private readonly ILogger<MongoIdempotencyStore> _logger;
 
     public MongoIdempotencyStore(IMongoClient mongoClient, MongoDbOptions options, ILogger<MongoIdempotencyStore> logger)
@@ -19,6 +20,7 @@ public class MongoIdempotencyStore : IIdempotencyStore
         var database = mongoClient.GetDatabase(options.DatabaseName);
         _commandCollection = database.GetCollection<ProcessedCommandDocument>("ProcessedCommands");
         _eventCollection = database.GetCollection<ProcessedEventDocument>("ProcessedEvents");
+        _idempotencyCollection = database.GetCollection<IdempotencyKeyDocument>("IdempotencyKeys");
 
         EnsureIndexes();
     }
@@ -84,6 +86,48 @@ public class MongoIdempotencyStore : IIdempotencyStore
         _logger.LogDebug("Marked event {EventId} as processed by {HandlerName}", eventId, handlerName);
     }
 
+    public async Task<IdempotencyCheckResult> CheckIdempotencyAsync(
+        string idempotencyKey,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await _idempotencyCollection.FindAsync(
+            Builders<IdempotencyKeyDocument>.Filter.Eq(i => i.IdempotencyKey, idempotencyKey),
+            cancellationToken: cancellationToken).ConfigureAwait(false);
+
+        var doc = await result.FirstOrDefaultAsync(cancellationToken).ConfigureAwait(false);
+        if (doc == null)
+        {
+            return new IdempotencyCheckResult { IsIdempotent = false };
+        }
+
+        return new IdempotencyCheckResult
+        {
+            IsIdempotent = true,
+            AggregateId = doc.AggregateId,
+            ProcessedAt = doc.ProcessedAt.UtcDateTime
+        };
+    }
+
+    public async Task MarkIdempotencyProcessedAsync(
+        string idempotencyKey,
+        string aggregateId,
+        CancellationToken cancellationToken = default)
+    {
+        var doc = new IdempotencyKeyDocument
+        {
+            IdempotencyKey = idempotencyKey,
+            AggregateId = aggregateId,
+            ProcessedAt = DateTimeOffset.UtcNow,
+            ExpiresAt = DateTimeOffset.UtcNow.AddHours(24)
+        };
+
+        await _idempotencyCollection.ReplaceOneAsync(
+            Builders<IdempotencyKeyDocument>.Filter.Eq(i => i.IdempotencyKey, idempotencyKey),
+            doc,
+            new ReplaceOptions { IsUpsert = true },
+            cancellationToken).ConfigureAwait(false);
+    }
+
     private void EnsureIndexes()
     {
         // Command index
@@ -107,6 +151,19 @@ public class MongoIdempotencyStore : IIdempotencyStore
             new CreateIndexModel<ProcessedEventDocument>(
                 eventExpiryIndex,
                 new CreateIndexOptions { ExpireAfter = TimeSpan.FromDays(7) }));
+
+        // Idempotency key indexes
+        var idempotencyKeyIndex = Builders<IdempotencyKeyDocument>.IndexKeys.Ascending(i => i.IdempotencyKey);
+        _idempotencyCollection.Indexes.CreateOne(
+            new CreateIndexModel<IdempotencyKeyDocument>(
+                idempotencyKeyIndex,
+                new CreateIndexOptions { Unique = true }));
+
+        var idempotencyExpiryIndex = Builders<IdempotencyKeyDocument>.IndexKeys.Ascending(i => i.ExpiresAt);
+        _idempotencyCollection.Indexes.CreateOne(
+            new CreateIndexModel<IdempotencyKeyDocument>(
+                idempotencyExpiryIndex,
+                new CreateIndexOptions { ExpireAfter = TimeSpan.FromHours(24) }));
     }
 
     private class ProcessedCommandDocument
@@ -123,6 +180,15 @@ public class MongoIdempotencyStore : IIdempotencyStore
         public string Id { get; set; } = Guid.NewGuid().ToString();
         public string EventId { get; set; } = null!;
         public string HandlerName { get; set; } = null!;
+        public DateTimeOffset ProcessedAt { get; set; }
+        public DateTimeOffset ExpiresAt { get; set; }
+    }
+
+    private class IdempotencyKeyDocument
+    {
+        public string Id { get; set; } = Guid.NewGuid().ToString();
+        public string IdempotencyKey { get; set; } = null!;
+        public string AggregateId { get; set; } = null!;
         public DateTimeOffset ProcessedAt { get; set; }
         public DateTimeOffset ExpiresAt { get; set; }
     }

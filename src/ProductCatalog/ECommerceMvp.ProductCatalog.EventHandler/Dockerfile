@@ -15,13 +15,13 @@ COPY ["src/ProductCatalog/ECommerceMvp.ProductCatalog.Infrastructure/ECommerceMv
 COPY ["src/ProductCatalog/ECommerceMvp.ProductCatalog.EventHandler/ECommerceMvp.ProductCatalog.EventHandler.csproj", "src/ProductCatalog/ECommerceMvp.ProductCatalog.EventHandler/"]
 
 # Restore dependencies
-RUN dotnet restore "ECommerceMvp.sln"
+RUN dotnet restore "src/ProductCatalog/ECommerceMvp.ProductCatalog.EventHandler/ECommerceMvp.ProductCatalog.EventHandler.csproj"
 
 # Copy full source
 COPY . .
 
 # Build
-RUN dotnet build "ECommerceMvp.sln" -c Release -o /app/build
+RUN dotnet build "src/ProductCatalog/ECommerceMvp.ProductCatalog.EventHandler/ECommerceMvp.ProductCatalog.EventHandler.csproj" -c Release -o /app/build
 
 # Publish
 FROM build AS publish

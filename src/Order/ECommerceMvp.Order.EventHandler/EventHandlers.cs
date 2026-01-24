@@ -1,3 +1,4 @@
+using ECommerceMvp.Shared.Application;
 using ECommerceMvp.Shared.Domain;
 using ECommerceMvp.Order.Domain;
 using ECommerceMvp.Order.QueryApi;

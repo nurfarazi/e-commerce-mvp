@@ -1,5 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
-using ECommerceMvp.Shared.Domain;
+using ECommerceMvp.Shared.Application;
 using ECommerceMvp.Order.QueryApi;
 
 namespace ECommerceMvp.Order.QueryApiServer.Controllers;
@@ -30,7 +30,9 @@ public class OrderQueriesController : ControllerBase
         _logger.LogInformation("Getting order details for {OrderId}", orderId);
 
         var query = new GetOrderDetailQuery(orderId);
-        var result = await _queryBus.SendAsync(query, cancellationToken).ConfigureAwait(false);
+        var result = await _queryBus.SendAsync<GetOrderDetailQuery, OrderDetailView?>(
+            query,
+            cancellationToken).ConfigureAwait(false);
 
         if (result == null)
         {
@@ -54,7 +56,9 @@ public class OrderQueriesController : ControllerBase
         _logger.LogInformation("Getting order details for order number {OrderNumber}", orderNumber);
 
         var query = new GetOrderDetailByNumberQuery(orderNumber);
-        var result = await _queryBus.SendAsync(query, cancellationToken).ConfigureAwait(false);
+        var result = await _queryBus.SendAsync<GetOrderDetailByNumberQuery, OrderDetailView?>(
+            query,
+            cancellationToken).ConfigureAwait(false);
 
         if (result == null)
         {
@@ -76,7 +80,9 @@ public class OrderQueriesController : ControllerBase
         _logger.LogInformation("Getting all orders for admin");
 
         var query = new GetAllOrdersAdminQuery();
-        var result = await _queryBus.SendAsync(query, cancellationToken).ConfigureAwait(false);
+        var result = await _queryBus.SendAsync<GetAllOrdersAdminQuery, List<AdminOrderListView>>(
+            query,
+            cancellationToken).ConfigureAwait(false);
 
         return Ok(result);
     }

@@ -8,7 +8,7 @@ public class Program
 {
     public static void Main(string[] args)
     {
-        var builder = WebApplicationBuilder.CreateBuilder(args);
+        var builder = WebApplication.CreateBuilder(args);
 
         // Add services
         builder.Services.AddControllers();

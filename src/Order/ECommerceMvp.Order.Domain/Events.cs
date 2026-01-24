@@ -62,6 +62,7 @@ public class PricedItem
 /// </summary>
 public class OrderCreatedEvent : DomainEvent
 {
+    public string CheckoutId { get; set; } = string.Empty;
     public string OrderId { get; set; } = string.Empty;
     public string OrderNumber { get; set; } = string.Empty;
     public string GuestToken { get; set; } = string.Empty;
@@ -174,6 +175,7 @@ public class OrderCartClearedEvent : DomainEvent
 /// </summary>
 public class OrderFinalizedEvent : DomainEvent
 {
+    public string CheckoutId { get; set; } = string.Empty;
     public string OrderId { get; set; } = string.Empty;
     public DateTime Timestamp { get; set; }
 

@@ -15,13 +15,13 @@ COPY ["src/Inventory/ECommerceMvp.Inventory.Infrastructure/ECommerceMvp.Inventor
 COPY ["src/Inventory/ECommerceMvp.Inventory.CommandApi/ECommerceMvp.Inventory.CommandApi.csproj", "src/Inventory/ECommerceMvp.Inventory.CommandApi/"]
 
 # Restore dependencies
-RUN dotnet restore "ECommerceMvp.sln"
+RUN dotnet restore "src/Inventory/ECommerceMvp.Inventory.CommandApi/ECommerceMvp.Inventory.CommandApi.csproj"
 
 # Copy full source
 COPY . .
 
 # Build
-RUN dotnet build "ECommerceMvp.sln" -c Release -o /app/build
+RUN dotnet build "src/Inventory/ECommerceMvp.Inventory.CommandApi/ECommerceMvp.Inventory.CommandApi.csproj" -c Release -o /app/build
 
 # Publish
 FROM build AS publish

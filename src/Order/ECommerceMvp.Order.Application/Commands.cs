@@ -291,7 +291,7 @@ public class PlaceOrderCommandHandler : ICommandHandler<PlaceOrderCommand, Place
         return $"ORD-{timestamp:yyyyMMdd}-{randomPart}";
     }
 
-    private void EmitOrderEvents(OrderAggregate order, string idempotencyKey)
+    private void EmitOrderEvents(OrderAggregate order, string idempotencyKey, string checkoutId = "")
     {
         // Emit OrderPlacementRequested (optional, for audit trail)
         var placementRequestedEvent = new OrderPlacementRequestedEvent
@@ -343,6 +343,7 @@ public class PlaceOrderCommandHandler : ICommandHandler<PlaceOrderCommand, Place
         var createdEvent = new OrderCreatedEvent
         {
             AggregateId = order.Id,
+            CheckoutId = checkoutId,
             OrderId = order.Id,
             OrderNumber = order.OrderNumber.Value,
             GuestToken = order.GuestToken.Value,
@@ -429,6 +430,456 @@ public class PlaceOrderCommandHandler : ICommandHandler<PlaceOrderCommand, Place
         };
 
         order.AddUncommittedEvent(submittedEvent);
+    }
+}
+
+#endregion
+
+#region CreateOrderCommand
+
+/// <summary>
+/// Command: Create an order from checkout saga.
+/// Similar to PlaceOrderCommand but used by Checkout orchestrator.
+/// </summary>
+public class CreateOrderCommand : ICommand<CreateOrderResponse>
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public string OrderId { get; set; } = string.Empty;
+    public string GuestToken { get; set; } = string.Empty;
+    public string CartId { get; set; } = string.Empty;
+    public string IdempotencyKey { get; set; } = string.Empty;
+    public CustomerInfoRequest CustomerInfo { get; set; } = null!;
+    public ShippingAddressRequest ShippingAddress { get; set; } = null!;
+    public List<CartItemSnapshot> CartItems { get; set; } = [];
+    public List<ProductSnapshot> ProductSnapshots { get; set; } = [];
+}
+
+public class CreateOrderResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Handler for CreateOrderCommand.
+/// Creates an order from Checkout saga using same logic as PlaceOrderCommand.
+/// </summary>
+public class CreateOrderCommandHandler : ICommandHandler<CreateOrderCommand, CreateOrderResponse>
+{
+    private readonly IRepository<OrderAggregate, string> _orderRepository;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly IIdempotencyStore _idempotencyStore;
+    private readonly ILogger<CreateOrderCommandHandler> _logger;
+
+    public CreateOrderCommandHandler(
+        IRepository<OrderAggregate, string> orderRepository,
+        IEventPublisher eventPublisher,
+        IIdempotencyStore idempotencyStore,
+        ILogger<CreateOrderCommandHandler> logger)
+    {
+        _orderRepository = orderRepository;
+        _eventPublisher = eventPublisher;
+        _idempotencyStore = idempotencyStore;
+        _logger = logger;
+    }
+
+    public async Task<CreateOrderResponse> HandleAsync(CreateOrderCommand command, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Check idempotency
+            var existingResult = await _idempotencyStore.GetResultAsync(command.IdempotencyKey);
+            if (existingResult != null)
+            {
+                _logger.LogInformation("Duplicate CreateOrder request with idempotency key {Key}",
+                    command.IdempotencyKey);
+                return new CreateOrderResponse { Success = true };
+            }
+
+            // Validate command
+            var validationError = ValidateCommand(command);
+            if (!string.IsNullOrEmpty(validationError))
+            {
+                _logger.LogWarning("CreateOrder validation failed: {Error}", validationError);
+                return new CreateOrderResponse { Success = false, Error = validationError };
+            }
+
+            // Validate invariants
+            var invariantError = ValidateInvariants(command);
+            if (!string.IsNullOrEmpty(invariantError))
+            {
+                _logger.LogWarning("CreateOrder invariant validation failed: {Error}", invariantError);
+                return new CreateOrderResponse { Success = false, Error = invariantError };
+            }
+
+            // Generate order number
+            var orderNumber = GenerateOrderNumber();
+
+            // Build line items
+            var lineItems = new List<ECommerceMvp.Order.Domain.OrderLineItem>();
+            foreach (var cartItem in command.CartItems)
+            {
+                var product = command.ProductSnapshots.First(p => p.ProductId == cartItem.ProductId);
+                var unitPrice = new ECommerceMvp.Order.Domain.Money(product.Price, product.Currency);
+                lineItems.Add(new ECommerceMvp.Order.Domain.OrderLineItem(
+                    Guid.NewGuid().ToString(),
+                    product.ProductId,
+                    product.Sku,
+                    product.Name,
+                    unitPrice,
+                    cartItem.Quantity));
+            }
+
+            // Calculate subtotal
+            var subtotal = new ECommerceMvp.Order.Domain.Money(
+                lineItems.Sum(li => li.LineTotal.Amount),
+                command.ProductSnapshots[0].Currency);
+
+            // Create order with CheckoutId
+            var order = OrderAggregate.PlaceFromCart(
+                command.OrderId,
+                orderNumber,
+                new ECommerceMvp.Order.Domain.GuestToken(command.GuestToken),
+                command.CartId,
+                lineItems,
+                new ECommerceMvp.Order.Domain.CustomerInfo(
+                    command.CustomerInfo.Name,
+                    command.CustomerInfo.Phone,
+                    command.CustomerInfo.Email),
+                new ECommerceMvp.Order.Domain.ShippingAddress(
+                    command.ShippingAddress.Line1,
+                    command.ShippingAddress.Line2,
+                    command.ShippingAddress.City,
+                    command.ShippingAddress.PostalCode,
+                    command.ShippingAddress.Country),
+                subtotal,
+                command.CheckoutId);  // Pass CheckoutId
+
+            // Emit domain events with CheckoutId
+            EmitOrderEvents(order, command.IdempotencyKey, command.CheckoutId);
+
+            var envelopes = order.UncommittedEvents
+                .Select(evt => new DomainEventEnvelope(
+                    evt,
+                    command.CheckoutId,  // Use CheckoutId as correlation ID
+                    command.IdempotencyKey,
+                    command.GuestToken,
+                    null))
+                .ToList();
+
+            // Save order
+            await _orderRepository.SaveAsync(order, cancellationToken);
+            _logger.LogInformation("Order created via CreateOrder: {OrderId}, CheckoutId: {CheckoutId}",
+                command.OrderId, command.CheckoutId);
+
+            // Mark idempotency key as processed
+            await _idempotencyStore.MarkIdempotencyProcessedAsync(
+                command.IdempotencyKey,
+                command.OrderId,
+                cancellationToken);
+
+            // Publish events
+            await _eventPublisher.PublishAsync(envelopes, cancellationToken);
+
+            var response = new CreateOrderResponse { Success = true };
+            await _idempotencyStore.StoreResultAsync(command.IdempotencyKey, response);
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating order: {OrderId}", command.OrderId);
+            return new CreateOrderResponse
+            {
+                Success = false,
+                Error = ex.Message
+            };
+        }
+    }
+
+    private string ValidateCommand(CreateOrderCommand command)
+    {
+        if (string.IsNullOrWhiteSpace(command.CheckoutId))
+            return "CheckoutId is required";
+
+        if (string.IsNullOrWhiteSpace(command.OrderId))
+            return "OrderId is required";
+
+        if (string.IsNullOrWhiteSpace(command.GuestToken))
+            return "GuestToken is required";
+
+        if (string.IsNullOrWhiteSpace(command.CartId))
+            return "CartId is required";
+
+        if (string.IsNullOrWhiteSpace(command.IdempotencyKey))
+            return "IdempotencyKey is required";
+
+        if (command.CustomerInfo == null)
+            return "CustomerInfo is required";
+
+        if (string.IsNullOrWhiteSpace(command.CustomerInfo.Name))
+            return "Customer name is required";
+
+        if (string.IsNullOrWhiteSpace(command.CustomerInfo.Phone))
+            return "Customer phone is required";
+
+        if (command.ShippingAddress == null)
+            return "ShippingAddress is required";
+
+        if (string.IsNullOrWhiteSpace(command.ShippingAddress.Line1))
+            return "Address line 1 is required";
+
+        if (string.IsNullOrWhiteSpace(command.ShippingAddress.City))
+            return "City is required";
+
+        if (command.CartItems == null || command.CartItems.Count == 0)
+            return "Cart is empty";
+
+        if (command.ProductSnapshots == null || command.ProductSnapshots.Count == 0)
+            return "Product snapshots are required";
+
+        return string.Empty;
+    }
+
+    private string ValidateInvariants(CreateOrderCommand command)
+    {
+        // Validate: all products must be active
+        foreach (var cartItem in command.CartItems)
+        {
+            var product = command.ProductSnapshots.FirstOrDefault(p => p.ProductId == cartItem.ProductId);
+            if (product == null)
+                return $"Product {cartItem.ProductId} not found in snapshots";
+
+            if (!product.IsActive)
+                return $"Product {product.Name} is no longer available";
+        }
+
+        return string.Empty;
+    }
+
+    private string GenerateOrderNumber()
+    {
+        // Generate human-readable order number: ORD-YYYYMMDD-XXXXX
+        var timestamp = DateTime.UtcNow;
+        var random = new Random();
+        var randomPart = random.Next(10000, 99999);
+        return $"ORD-{timestamp:yyyyMMdd}-{randomPart}";
+    }
+
+    private void EmitOrderEvents(OrderAggregate order, string idempotencyKey, string checkoutId = "")
+    {
+        // Emit OrderPlacementRequested
+        var placementRequestedEvent = new OrderPlacementRequestedEvent
+        {
+            AggregateId = order.Id,
+            OrderId = order.Id,
+            GuestToken = order.GuestToken.Value,
+            CartId = order.CartId,
+            IdempotencyKey = idempotencyKey,
+            Timestamp = DateTime.UtcNow
+        };
+
+        order.AddUncommittedEvent(placementRequestedEvent);
+
+        // Emit OrderValidated
+        var validatedEvent = new OrderValidatedEvent
+        {
+            AggregateId = order.Id,
+            OrderId = order.Id,
+            Timestamp = DateTime.UtcNow
+        };
+
+        order.AddUncommittedEvent(validatedEvent);
+
+        // Emit OrderPriced
+        var pricedEvent = new OrderPricedEvent
+        {
+            AggregateId = order.Id,
+            OrderId = order.Id,
+            ItemsPriced = order.LineItems.Select(li => new PricedItem
+            {
+                ProductId = li.ProductId,
+                Sku = li.SkuSnapshot,
+                Name = li.NameSnapshot,
+                UnitPrice = li.UnitPriceSnapshot.Amount,
+                Quantity = li.Quantity,
+                LineTotal = li.LineTotal.Amount
+            }).ToList(),
+            Subtotal = order.Totals.Subtotal.Amount,
+            ShippingFee = order.Totals.ShippingFee.Amount,
+            Total = order.Totals.Total.Amount,
+            Currency = order.Totals.Subtotal.Currency,
+            Timestamp = DateTime.UtcNow
+        };
+
+        order.AddUncommittedEvent(pricedEvent);
+
+        // Emit OrderCreated
+        var createdEvent = new OrderCreatedEvent
+        {
+            AggregateId = order.Id,
+            CheckoutId = checkoutId,
+            OrderId = order.Id,
+            OrderNumber = order.OrderNumber.Value,
+            GuestToken = order.GuestToken.Value,
+            CartId = order.CartId,
+            CustomerInfo = new CustomerInfoDto
+            {
+                Name = order.CustomerInfo.Name,
+                Phone = order.CustomerInfo.Phone,
+                Email = order.CustomerInfo.Email
+            },
+            ShippingAddress = new ShippingAddressDto
+            {
+                Line1 = order.ShippingAddress.Line1,
+                Line2 = order.ShippingAddress.Line2,
+                City = order.ShippingAddress.City,
+                PostalCode = order.ShippingAddress.PostalCode,
+                Country = order.ShippingAddress.Country
+            },
+            Totals = new OrderTotalsDto
+            {
+                Subtotal = order.Totals.Subtotal.Amount,
+                ShippingFee = order.Totals.ShippingFee.Amount,
+                Total = order.Totals.Total.Amount,
+                Currency = order.Totals.Subtotal.Currency
+            },
+            LineItems = order.LineItems.Select(li => new OrderLineItemDto
+            {
+                LineItemId = li.Id,
+                ProductId = li.ProductId,
+                SkuSnapshot = li.SkuSnapshot,
+                NameSnapshot = li.NameSnapshot,
+                UnitPriceSnapshot = li.UnitPriceSnapshot.Amount,
+                Quantity = li.Quantity,
+                LineTotal = li.LineTotal.Amount
+            }).ToList(),
+            PaymentMethod = order.PaymentMethod,
+            PaymentStatus = order.PaymentStatus,
+            CreatedAt = order.CreatedAt,
+            Timestamp = DateTime.UtcNow
+        };
+
+        order.AddUncommittedEvent(createdEvent);
+
+        // Emit OrderStockCommitRequested
+        var stockCommitRequestedEvent = new OrderStockCommitRequestedEvent
+        {
+            AggregateId = order.Id,
+            OrderId = order.Id,
+            Items = order.LineItems.Select(li => new StockCommitItem
+            {
+                ProductId = li.ProductId,
+                Quantity = li.Quantity
+            }).ToList(),
+            Timestamp = DateTime.UtcNow
+        };
+
+        order.AddUncommittedEvent(stockCommitRequestedEvent);
+
+        // Emit OrderSubmitted
+        var submittedEvent = new OrderSubmittedIntegrationEvent
+        {
+            AggregateId = order.Id,
+            OrderId = order.Id,
+            OrderNumber = order.OrderNumber.Value,
+            GuestToken = order.GuestToken.Value,
+            Items = order.LineItems.Select(li => new OrderLineItemDto
+            {
+                LineItemId = li.Id,
+                ProductId = li.ProductId,
+                SkuSnapshot = li.SkuSnapshot,
+                NameSnapshot = li.NameSnapshot,
+                UnitPriceSnapshot = li.UnitPriceSnapshot.Amount,
+                Quantity = li.Quantity,
+                LineTotal = li.LineTotal.Amount
+            }).ToList(),
+            Totals = new OrderTotalsDto
+            {
+                Subtotal = order.Totals.Subtotal.Amount,
+                ShippingFee = order.Totals.ShippingFee.Amount,
+                Total = order.Totals.Total.Amount,
+                Currency = order.Totals.Subtotal.Currency
+            },
+            Timestamp = DateTime.UtcNow
+        };
+
+        order.AddUncommittedEvent(submittedEvent);
+    }
+}
+
+#endregion
+
+#region FinalizeOrderCommand
+
+/// <summary>
+/// Command: Finalize an order (mark as ready for processing).
+/// </summary>
+public class FinalizeOrderCommand : ICommand<FinalizeOrderResponse>
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public string OrderId { get; set; } = string.Empty;
+}
+
+public class FinalizeOrderResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Handler for FinalizeOrderCommand.
+/// Finalizes an order and publishes OrderFinalizedEvent.
+/// </summary>
+public class FinalizeOrderCommandHandler : ICommandHandler<FinalizeOrderCommand, FinalizeOrderResponse>
+{
+    private readonly IRepository<OrderAggregate, string> _orderRepository;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ILogger<FinalizeOrderCommandHandler> _logger;
+
+    public FinalizeOrderCommandHandler(
+        IRepository<OrderAggregate, string> orderRepository,
+        IEventPublisher eventPublisher,
+        ILogger<FinalizeOrderCommandHandler> logger)
+    {
+        _orderRepository = orderRepository;
+        _eventPublisher = eventPublisher;
+        _logger = logger;
+    }
+
+    public async Task<FinalizeOrderResponse> HandleAsync(FinalizeOrderCommand command)
+    {
+        try
+        {
+            var order = await _orderRepository.GetByIdAsync(command.OrderId);
+            if (order == null)
+            {
+                _logger.LogError("Order not found: {OrderId}", command.OrderId);
+                return new FinalizeOrderResponse { Success = false, Error = "Order not found" };
+            }
+
+            // Finalize the order
+            order.FinalizeCreated();
+
+            // Save order
+            await _orderRepository.SaveAsync(order);
+            _logger.LogInformation("Order finalized via FinalizeOrder: {OrderId}, CheckoutId: {CheckoutId}",
+                command.OrderId, command.CheckoutId);
+
+            // Publish events
+            await _eventPublisher.PublishAsync(order.UncommittedEvents);
+
+            return new FinalizeOrderResponse { Success = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finalizing order: {OrderId}", command.OrderId);
+            return new FinalizeOrderResponse
+            {
+                Success = false,
+                Error = ex.Message
+            };
+        }
     }
 }
 

@@ -338,6 +338,7 @@ public class Order : AggregateRoot<string>
     public OrderNumber OrderNumber { get; private set; } = null!;
     public GuestToken GuestToken { get; private set; } = null!;
     public string CartId { get; private set; } = string.Empty;
+    public string CheckoutId { get; private set; } = string.Empty;
     public CustomerInfo CustomerInfo { get; private set; } = null!;
     public ShippingAddress ShippingAddress { get; private set; } = null!;
     public OrderTotals Totals { get; private set; } = null!;
@@ -364,7 +365,8 @@ public class Order : AggregateRoot<string>
         List<OrderLineItem> lineItems,
         CustomerInfo customerInfo,
         ShippingAddress shippingAddress,
-        Money subtotal)
+        Money subtotal,
+        string checkoutId = "")
     {
         if (string.IsNullOrWhiteSpace(orderId))
             throw new ArgumentException("Order ID cannot be empty", nameof(orderId));
@@ -388,6 +390,7 @@ public class Order : AggregateRoot<string>
             OrderNumber = new OrderNumber(orderNumber),
             GuestToken = guestToken,
             CartId = cartId,
+            CheckoutId = checkoutId,
             CustomerInfo = customerInfo,
             ShippingAddress = shippingAddress,
             Totals = new OrderTotals(subtotal),
@@ -430,6 +433,7 @@ public class Order : AggregateRoot<string>
         AddUncommittedEvent(new OrderFinalizedEvent
         {
             AggregateId = Id,
+            CheckoutId = CheckoutId,
             OrderId = Id,
             Timestamp = DateTime.UtcNow
         });
