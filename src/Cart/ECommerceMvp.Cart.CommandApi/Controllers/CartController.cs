@@ -1,5 +1,7 @@
 using ECommerceMvp.Cart.Application;
+using ECommerceMvp.Shared.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace ECommerceMvp.Cart.CommandApi.Controllers;
 
@@ -29,7 +31,7 @@ public class CartController : ControllerBase
         try
         {
             var command = new CreateCartCommand { GuestToken = request.GuestToken };
-            await _commandEnqueuer.EnqueueAsync(command);
+            await _commandEnqueuer.EnqueueAsync(command, "cart.commands");
             _logger.LogInformation("CreateCartCommand enqueued for guest {GuestToken}", request.GuestToken);
             return Accepted(new { status = "accepted", guestToken = request.GuestToken });
         }
@@ -62,7 +64,7 @@ public class CartController : ControllerBase
                 ProductId = request.ProductId,
                 Quantity = request.Quantity
             };
-            await _commandEnqueuer.EnqueueAsync(command);
+            await _commandEnqueuer.EnqueueAsync(command, "cart.commands");
             _logger.LogInformation("AddCartItemCommand enqueued for guest {GuestToken}", request.GuestToken);
             return Accepted(new { status = "accepted", guestToken = request.GuestToken });
         }
@@ -93,7 +95,7 @@ public class CartController : ControllerBase
                 ProductId = productId,
                 NewQuantity = request.NewQuantity
             };
-            await _commandEnqueuer.EnqueueAsync(command);
+            await _commandEnqueuer.EnqueueAsync(command, "cart.commands");
             _logger.LogInformation("UpdateCartItemQtyCommand enqueued for guest {GuestToken}", request.GuestToken);
             return Accepted(new { status = "accepted" });
         }
@@ -121,7 +123,7 @@ public class CartController : ControllerBase
                 GuestToken = guestToken,
                 ProductId = productId
             };
-            await _commandEnqueuer.EnqueueAsync(command);
+            await _commandEnqueuer.EnqueueAsync(command, "cart.commands");
             _logger.LogInformation("RemoveCartItemCommand enqueued for guest {GuestToken}", guestToken);
             return Accepted(new { status = "accepted" });
         }
@@ -145,7 +147,7 @@ public class CartController : ControllerBase
         try
         {
             var command = new ClearCartCommand { GuestToken = guestToken };
-            await _commandEnqueuer.EnqueueAsync(command);
+            await _commandEnqueuer.EnqueueAsync(command, "cart.commands");
             _logger.LogInformation("ClearCartCommand enqueued for guest {GuestToken}", guestToken);
             return Accepted(new { status = "accepted" });
         }

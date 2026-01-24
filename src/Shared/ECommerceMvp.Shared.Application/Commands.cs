@@ -28,6 +28,17 @@ public interface ICommandDispatcher
 }
 
 /// <summary>
+/// Command bus for sending commands to handlers.
+/// </summary>
+public interface ICommandBus
+{
+    Task<TResponse> SendAsync<TCommand, TResponse>(
+        TCommand command,
+        CancellationToken cancellationToken = default)
+        where TCommand : ICommand<TResponse>;
+}
+
+/// <summary>
 /// Metadata for command execution context.
 /// </summary>
 public class CommandContext

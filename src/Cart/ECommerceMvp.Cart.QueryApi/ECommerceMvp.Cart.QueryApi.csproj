@@ -10,9 +10,11 @@
   <ItemGroup>
     <PackageReference Include="MongoDB.Driver" Version="2.24.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="../../Shared/ECommerceMvp.Shared.Application/ECommerceMvp.Shared.Application.csproj" />
     <ProjectReference Include="../../Shared/ECommerceMvp.Shared.Infrastructure/ECommerceMvp.Shared.Infrastructure.csproj" />
     <ProjectReference Include="../ECommerceMvp.Cart.Application/ECommerceMvp.Cart.Application.csproj" />
   </ItemGroup>

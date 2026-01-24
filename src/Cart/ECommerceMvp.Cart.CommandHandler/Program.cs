@@ -1,32 +1,54 @@
 using ECommerceMvp.Cart.Application;
+using ECommerceMvp.Cart.CommandHandler;
 using ECommerceMvp.Cart.Domain;
 using ECommerceMvp.Cart.Infrastructure;
+using ECommerceMvp.Shared.Application;
+using ECommerceMvp.Shared.Infrastructure;
 using MongoDB.Driver;
+using Serilog;
 
-var builder = Host.CreateDefaultBuilder(args)
+// Logging
+Log.Logger = new LoggerConfiguration()
+    .MinimumLevel.Debug()
+    .WriteTo.Console(outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj}{NewLine}{Exception}")
+    .CreateLogger();
+
+var host = Host.CreateDefaultBuilder(args)
+    .UseSerilog()
     .ConfigureServices((context, services) =>
     {
         // MongoDB
-        var mongoConnectionString = context.Configuration.GetConnectionString("MongoDB") ?? "mongodb://localhost:27017";
-        var mongoClient = new MongoDB.Driver.MongoClient(mongoConnectionString);
-        services.AddSingleton(mongoClient);
+        var mongoOptions = new MongoDbOptions
+        {
+            ConnectionString = context.Configuration["MongoDB:ConnectionString"] ?? "mongodb://localhost:27017",
+            DatabaseName = context.Configuration["MongoDB:Database"] ?? "ecommerce"
+        };
+
+        var mongoClient = new MongoClient(mongoOptions.ConnectionString);
+        services.AddSingleton<IMongoClient>(mongoClient);
+        services.AddSingleton(mongoOptions);
 
         // RabbitMQ
-        var rabbitMqHostName = context.Configuration.GetConnectionString("RabbitMQ") ?? "localhost";
-        services.AddScoped<IEventPublisher>(sp =>
-            new RabbitMqEventPublisher(rabbitMqHostName, "guest", "guest"));
+        var rabbitMqOptions = new RabbitMqOptions
+        {
+            HostName = context.Configuration["RabbitMq:HostName"] ?? "localhost",
+            Port = int.Parse(context.Configuration["RabbitMq:Port"] ?? "5672"),
+            UserName = context.Configuration["RabbitMq:UserName"] ?? "guest",
+            Password = context.Configuration["RabbitMq:Password"] ?? "guest"
+        };
 
-        services.AddScoped<IEventStore>(sp =>
-            new MongoEventStore(mongoClient.GetDatabase("ecommerce")));
+        services.AddSingleton(rabbitMqOptions);
 
-        services.AddScoped<IIdempotencyStore>(sp =>
-            new MongoIdempotencyStore(mongoClient.GetDatabase("ecommerce")));
+        // Shared infrastructure
+        services.AddSingleton<IEventStore, MongoEventStore>();
+        services.AddSingleton<IIdempotencyStore, MongoIdempotencyStore>();
+        services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
+        services.AddSingleton<ICommandEnqueuer, RabbitMqCommandEnqueuer>();
 
-        // Repository
-        services.AddScoped<IRepository<ECommerceMvp.Cart.Domain.ShoppingCart, ECommerceMvp.Cart.Domain.CartId>>(sp =>
+        // Cart Repository & Handlers
+        services.AddScoped<IRepository<ShoppingCart, CartId>>(sp =>
             new CartRepository(sp.GetRequiredService<IEventStore>(), sp.GetRequiredService<IEventPublisher>()));
 
-        // Command Handlers
         services.AddScoped<ICommandHandler<CreateCartCommand, CreateCartResponse>, CreateCartCommandHandler>();
         services.AddScoped<ICommandHandler<AddCartItemCommand, AddCartItemResponse>, AddCartItemCommandHandler>();
         services.AddScoped<ICommandHandler<UpdateCartItemQtyCommand, UpdateCartItemQtyResponse>, UpdateCartItemQtyCommandHandler>();
@@ -35,7 +57,9 @@ var builder = Host.CreateDefaultBuilder(args)
 
         // Worker
         services.AddHostedService<CartCommandWorker>();
-    });
+    })
+    .Build();
 
-var host = builder.Build();
-host.Run();
+Log.Information("Cart CommandHandler starting on port 5004");
+await host.RunAsync();
+

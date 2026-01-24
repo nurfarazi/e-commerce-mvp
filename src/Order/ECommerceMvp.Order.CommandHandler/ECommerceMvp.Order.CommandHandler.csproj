@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseAppHost>true</UseAppHost>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\ECommerceMvp.Shared.Domain\ECommerceMvp.Shared.Domain.csproj" />
+    <ProjectReference Include="..\..\Shared\ECommerceMvp.Shared.Application\ECommerceMvp.Shared.Application.csproj" />
+    <ProjectReference Include="..\ECommerceMvp.Order.Application\ECommerceMvp.Order.Application.csproj" />
+    <ProjectReference Include="..\ECommerceMvp.Order.Domain\ECommerceMvp.Order.Domain.csproj" />
+    <ProjectReference Include="..\ECommerceMvp.Order.Infrastructure\ECommerceMvp.Order.Infrastructure.csproj" />
+    <ProjectReference Include="..\ECommerceMvp.Order.EventHandler\ECommerceMvp.Order.EventHandler.csproj" />
+    <ProjectReference Include="..\ECommerceMvp.Order.QueryApi\ECommerceMvp.Order.QueryApi.csproj" />
+  </ItemGroup>
+
+</Project>

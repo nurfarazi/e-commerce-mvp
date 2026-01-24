@@ -1,7 +1,9 @@
 using ECommerceMvp.Shared.Application;
+using ECommerceMvp.Shared.Domain;
 using ECommerceMvp.Shared.Infrastructure;
 using ECommerceMvp.Cart.Domain;
 using MongoDB.Driver;
+using MongoDB.Bson;
 using Microsoft.Extensions.Logging;
 
 namespace ECommerceMvp.Cart.Application;
@@ -46,7 +48,7 @@ public class CreateCartCommandHandler : ICommandHandler<CreateCartCommand, Creat
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<CreateCartResponse> Handle(CreateCartCommand command)
+    public async Task<CreateCartResponse> HandleAsync(CreateCartCommand command, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(command.GuestToken))
             return new CreateCartResponse { Success = false, Error = "GuestToken is required" };
@@ -58,7 +60,16 @@ public class CreateCartCommandHandler : ICommandHandler<CreateCartCommand, Creat
 
             var cart = ShoppingCart.Create(cartId, guestToken);
             await _repository.SaveAsync(cart);
-            await _eventPublisher.PublishAsync(cart.GetUncommittedEvents());
+
+            var envelopes = cart.UncommittedEvents
+                .Select(evt => new DomainEventEnvelope(
+                    evt,
+                    Guid.NewGuid().ToString(), // CorrelationId
+                    null,
+                    null,
+                    null))
+                .ToList();
+            await _eventPublisher.PublishAsync(envelopes);
 
             _logger.LogInformation("Cart created: {CartId} for guest {GuestToken}", cartId, guestToken);
 
@@ -112,7 +123,7 @@ public class AddCartItemCommandHandler : ICommandHandler<AddCartItemCommand, Add
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<AddCartItemResponse> Handle(AddCartItemCommand command)
+    public async Task<AddCartItemResponse> HandleAsync(AddCartItemCommand command, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(command.GuestToken))
             return new AddCartItemResponse { Success = false, Error = "GuestToken is required" };
@@ -124,8 +135,9 @@ public class AddCartItemCommandHandler : ICommandHandler<AddCartItemCommand, Add
         try
         {
             // Soft validation: check product exists in catalog read model
-            var productsCollection = _database.GetCollection<dynamic>("Products");
-            var productExists = await productsCollection.Find(p => p["productId"] == command.ProductId).AnyAsync();
+            var productsCollection = _database.GetCollection<BsonDocument>("Products");
+            var filter = Builders<BsonDocument>.Filter.Eq("productId", command.ProductId);
+            var productExists = await productsCollection.Find(filter).AnyAsync();
             if (!productExists)
                 return new AddCartItemResponse { Success = false, Error = $"Product {command.ProductId} not found" };
 
@@ -143,7 +155,16 @@ public class AddCartItemCommandHandler : ICommandHandler<AddCartItemCommand, Add
 
             cart.AddItem(productId, quantity);
             await _repository.SaveAsync(cart);
-            await _eventPublisher.PublishAsync(cart.GetUncommittedEvents());
+
+            var envelopes = cart.UncommittedEvents
+                .Select(evt => new DomainEventEnvelope(
+                    evt,
+                    Guid.NewGuid().ToString(), // CorrelationId
+                    null,
+                    null,
+                    null))
+                .ToList();
+            await _eventPublisher.PublishAsync(envelopes);
 
             _logger.LogInformation("Item added to cart {CartId}: {ProductId} x {Quantity}", cartId, productId, quantity);
 
@@ -192,7 +213,7 @@ public class UpdateCartItemQtyCommandHandler : ICommandHandler<UpdateCartItemQty
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<UpdateCartItemQtyResponse> Handle(UpdateCartItemQtyCommand command)
+    public async Task<UpdateCartItemQtyResponse> HandleAsync(UpdateCartItemQtyCommand command, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(command.GuestToken))
             return new UpdateCartItemQtyResponse { Success = false, Error = "GuestToken is required" };
@@ -213,7 +234,16 @@ public class UpdateCartItemQtyCommandHandler : ICommandHandler<UpdateCartItemQty
 
             cart.ChangeQuantity(productId, newQuantity);
             await _repository.SaveAsync(cart);
-            await _eventPublisher.PublishAsync(cart.GetUncommittedEvents());
+
+            var envelopes = cart.UncommittedEvents
+                .Select(evt => new DomainEventEnvelope(
+                    evt,
+                    Guid.NewGuid().ToString(), // CorrelationId
+                    null,
+                    null,
+                    null))
+                .ToList();
+            await _eventPublisher.PublishAsync(envelopes);
 
             _logger.LogInformation("Cart {CartId} item {ProductId} quantity updated to {Quantity}", cartId, productId, newQuantity);
 
@@ -261,7 +291,7 @@ public class RemoveCartItemCommandHandler : ICommandHandler<RemoveCartItemComman
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<RemoveCartItemResponse> Handle(RemoveCartItemCommand command)
+    public async Task<RemoveCartItemResponse> HandleAsync(RemoveCartItemCommand command, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(command.GuestToken))
             return new RemoveCartItemResponse { Success = false, Error = "GuestToken is required" };
@@ -278,7 +308,16 @@ public class RemoveCartItemCommandHandler : ICommandHandler<RemoveCartItemComman
             var productId = new ProductId(command.ProductId);
             cart.RemoveItem(productId);
             await _repository.SaveAsync(cart);
-            await _eventPublisher.PublishAsync(cart.GetUncommittedEvents());
+
+            var envelopes = cart.UncommittedEvents
+                .Select(evt => new DomainEventEnvelope(
+                    evt,
+                    Guid.NewGuid().ToString(), // CorrelationId
+                    null,
+                    null,
+                    null))
+                .ToList();
+            await _eventPublisher.PublishAsync(envelopes);
 
             _logger.LogInformation("Item {ProductId} removed from cart {CartId}", productId, cartId);
 
@@ -325,7 +364,7 @@ public class ClearCartCommandHandler : ICommandHandler<ClearCartCommand, ClearCa
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<ClearCartResponse> Handle(ClearCartCommand command)
+    public async Task<ClearCartResponse> HandleAsync(ClearCartCommand command, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(command.GuestToken))
             return new ClearCartResponse { Success = false, Error = "GuestToken is required" };
@@ -339,7 +378,16 @@ public class ClearCartCommandHandler : ICommandHandler<ClearCartCommand, ClearCa
 
             cart.Clear();
             await _repository.SaveAsync(cart);
-            await _eventPublisher.PublishAsync(cart.GetUncommittedEvents());
+
+            var envelopes = cart.UncommittedEvents
+                .Select(evt => new DomainEventEnvelope(
+                    evt,
+                    Guid.NewGuid().ToString(), // CorrelationId
+                    null,
+                    null,
+                    null))
+                .ToList();
+            await _eventPublisher.PublishAsync(envelopes);
 
             _logger.LogInformation("Cart {CartId} cleared", cartId);
 
@@ -377,7 +425,7 @@ public class GetCartByGuestTokenQueryHandler : IQueryHandler<GetCartByGuestToken
         _database = mongoClient?.GetDatabase("ecommerce") ?? throw new ArgumentNullException(nameof(mongoClient));
     }
 
-    public async Task<CartView?> Handle(GetCartByGuestTokenQuery query)
+    public async Task<CartView?> HandleAsync(GetCartByGuestTokenQuery query, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(query.GuestToken))
             return null;

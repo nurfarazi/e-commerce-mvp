@@ -283,6 +283,93 @@ services:
     networks:
       - ecommerce-network
 
+  # Order Services
+  order-commandapi:
+    build:
+      context: .
+      dockerfile: src/Order/ECommerceMvp.Order.CommandApi/Dockerfile
+    container_name: ecommerce-order-commandapi
+    ports:
+      - "5006:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  order-queryapi:
+    build:
+      context: .
+      dockerfile: src/Order/ECommerceMvp.Order.QueryApiServer/Dockerfile
+    container_name: ecommerce-order-queryapi
+    ports:
+      - "5007:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  order-commandhandler:
+    build:
+      context: .
+      dockerfile: src/Order/ECommerceMvp.Order.CommandHandler/Dockerfile
+    container_name: ecommerce-order-commandhandler
+    environment:
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  order-eventhandler:
+    build:
+      context: .
+      dockerfile: src/Order/ECommerceMvp.Order.EventHandler/Dockerfile
+    container_name: ecommerce-order-eventhandler
+    environment:
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
 volumes:
   mongodb-data:
   rabbitmq-data:

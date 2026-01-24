@@ -1,5 +1,7 @@
 using ECommerceMvp.Cart.Application;
+using ECommerceMvp.Shared.Application;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
 namespace ECommerceMvp.Cart.QueryApi.Controllers;
 
@@ -29,7 +31,7 @@ public class CartController : ControllerBase
         try
         {
             var query = new GetCartByGuestTokenQuery { GuestToken = guestToken };
-            var cart = await _queryHandler.Handle(query);
+            var cart = await _queryHandler.HandleAsync(query);
 
             if (cart == null)
                 return NotFound(new { error = "Cart not found" });

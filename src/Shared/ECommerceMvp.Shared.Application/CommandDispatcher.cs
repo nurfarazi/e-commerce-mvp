@@ -50,3 +50,31 @@ public class CommandDispatcher : ICommandDispatcher
             $"Handler for command type {typeof(TCommand).Name} did not return a Task<{typeof(TResponse).Name}>");
     }
 }
+/// <summary>
+/// Command bus implementation using dependency injection.
+/// Routes commands to registered handlers.
+/// </summary>
+public class CommandBus : ICommandBus
+{
+    private readonly IServiceProvider _serviceProvider;
+
+    public CommandBus(IServiceProvider serviceProvider)
+    {
+        _serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+    }
+
+    public async Task<TResponse> SendAsync<TCommand, TResponse>(
+        TCommand command,
+        CancellationToken cancellationToken = default)
+        where TCommand : ICommand<TResponse>
+    {
+        var handler = _serviceProvider.GetService(typeof(ICommandHandler<TCommand, TResponse>));
+
+        if (handler == null)
+            throw new InvalidOperationException(
+                $"No handler registered for command type {typeof(TCommand).Name}");
+
+        var commandHandler = (ICommandHandler<TCommand, TResponse>)handler;
+        return await commandHandler.HandleAsync(command, cancellationToken).ConfigureAwait(false);
+    }
+}

@@ -43,6 +43,17 @@ public abstract class AggregateRoot<TId> : IAggregateRoot<TId> where TId : notnu
     }
 
     /// <summary>
+    /// Public helper to add a domain event when the aggregate is orchestrated externally.
+    /// </summary>
+    public void AddUncommittedEvent(DomainEvent domainEvent)
+    {
+        if (domainEvent == null)
+            throw new ArgumentNullException(nameof(domainEvent));
+
+        AppendEvent(domainEvent);
+    }
+
+    /// <summary>
     /// Replay an event during aggregate reconstruction (loading from event store).
     /// Subclasses override this to apply event state changes.
     /// </summary>
@@ -62,6 +73,19 @@ public abstract class AggregateRoot<TId> : IAggregateRoot<TId> where TId : notnu
             Version++;
         }
     }
+}
+
+/// <summary>
+/// Base class for entities identified by a value object.
+/// </summary>
+public abstract class Entity<TId> where TId : notnull
+{
+    protected Entity(TId id)
+    {
+        Id = id ?? throw new ArgumentNullException(nameof(id));
+    }
+
+    public TId Id { get; }
 }
 
 /// <summary>

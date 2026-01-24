@@ -1,6 +1,8 @@
 using ECommerceMvp.Cart.Application;
 using ECommerceMvp.Cart.Domain;
 using ECommerceMvp.Cart.Infrastructure;
+using ECommerceMvp.Shared.Application;
+using ECommerceMvp.Shared.Infrastructure;
 using MongoDB.Driver;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,23 +13,32 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 // MongoDB
-var mongoConnectionString = builder.Configuration.GetConnectionString("MongoDB") ?? "mongodb://localhost:27017";
-var mongoClient = new MongoDB.Driver.MongoClient(mongoConnectionString);
-builder.Services.AddSingleton(mongoClient);
+var mongoOptions = new MongoDbOptions
+{
+    ConnectionString = builder.Configuration["MongoDB:ConnectionString"] ?? "mongodb://localhost:27017",
+    DatabaseName = builder.Configuration["MongoDB:Database"] ?? "ecommerce"
+};
+
+var mongoClient = new MongoClient(mongoOptions.ConnectionString);
+builder.Services.AddSingleton<IMongoClient>(mongoClient);
+builder.Services.AddSingleton(mongoOptions);
 
 // RabbitMQ
-var rabbitMqHostName = builder.Configuration.GetConnectionString("RabbitMQ") ?? "localhost";
-builder.Services.AddScoped<ICommandEnqueuer>(sp =>
-    new RabbitMqCommandEnqueuer(rabbitMqHostName, "guest", "guest"));
+var rabbitMqOptions = new RabbitMqOptions
+{
+    HostName = builder.Configuration["RabbitMq:HostName"] ?? "localhost",
+    Port = int.Parse(builder.Configuration["RabbitMq:Port"] ?? "5672"),
+    UserName = builder.Configuration["RabbitMq:UserName"] ?? "guest",
+    Password = builder.Configuration["RabbitMq:Password"] ?? "guest"
+};
 
-builder.Services.AddScoped<IEventPublisher>(sp =>
-    new RabbitMqEventPublisher(rabbitMqHostName, "guest", "guest"));
+builder.Services.AddSingleton(rabbitMqOptions);
 
-builder.Services.AddScoped<IEventStore>(sp =>
-    new MongoEventStore(mongoClient.GetDatabase("ecommerce")));
-
-builder.Services.AddScoped<IIdempotencyStore>(sp =>
-    new MongoIdempotencyStore(mongoClient.GetDatabase("ecommerce")));
+// Shared infrastructure
+builder.Services.AddSingleton<IEventStore, MongoEventStore>();
+builder.Services.AddSingleton<IIdempotencyStore, MongoIdempotencyStore>();
+builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
+builder.Services.AddSingleton<ICommandEnqueuer, RabbitMqCommandEnqueuer>();
 
 // Cart Repository & Handlers
 builder.Services.AddScoped<IRepository<ShoppingCart, CartId>>(sp =>

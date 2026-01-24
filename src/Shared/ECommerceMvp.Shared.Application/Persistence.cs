@@ -65,6 +65,16 @@ public interface IIdempotencyStore
 
     Task<bool> IsEventProcessedAsync(string eventId, string handlerName, CancellationToken cancellationToken = default);
     Task MarkEventAsProcessedAsync(string eventId, string handlerName, CancellationToken cancellationToken = default);
+
+    Task<IdempotencyCheckResult> CheckIdempotencyAsync(string idempotencyKey, CancellationToken cancellationToken = default);
+    Task MarkIdempotencyProcessedAsync(string idempotencyKey, string aggregateId, CancellationToken cancellationToken = default);
+}
+
+public class IdempotencyCheckResult
+{
+    public bool IsIdempotent { get; set; }
+    public string AggregateId { get; set; } = string.Empty;
+    public DateTime ProcessedAt { get; set; }
 }
 
 /// <summary>
@@ -73,4 +83,29 @@ public interface IIdempotencyStore
 public class ConcurrencyException : Exception
 {
     public ConcurrencyException(string message) : base(message) { }
+}
+/// <summary>
+/// In-memory event publisher for MVP - logs events without actual message broker.
+/// In production, replace with RabbitMQ, Kafka, Azure Service Bus, etc.
+/// </summary>
+public class InMemoryEventPublisher : IEventPublisher
+{
+    private readonly List<DomainEventEnvelope> _publishedEvents = [];
+
+    public async Task PublishAsync(
+        IEnumerable<DomainEventEnvelope> eventEnvelopes,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var envelope in eventEnvelopes)
+        {
+            _publishedEvents.Add(envelope);
+        }
+
+        await Task.CompletedTask.ConfigureAwait(false);
+    }
+
+    /// <summary>
+    /// Get all published events (for testing/debugging).
+    /// </summary>
+    public IReadOnlyList<DomainEventEnvelope> GetPublishedEvents() => _publishedEvents.AsReadOnly();
 }

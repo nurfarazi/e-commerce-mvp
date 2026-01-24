@@ -16,7 +16,7 @@ public class CartId : ValueObject
         Value = value;
     }
 
-    protected override IEnumerable<object> GetEqualityComponents()
+    public override IEnumerable<object> GetEqualityComponents()
     {
         yield return Value;
     }
@@ -39,7 +39,7 @@ public class GuestToken : ValueObject
         Value = value;
     }
 
-    protected override IEnumerable<object> GetEqualityComponents()
+    public override IEnumerable<object> GetEqualityComponents()
     {
         yield return Value;
     }
@@ -62,7 +62,7 @@ public class Quantity : ValueObject
         Value = value;
     }
 
-    protected override IEnumerable<object> GetEqualityComponents()
+    public override IEnumerable<object> GetEqualityComponents()
     {
         yield return Value;
     }
@@ -85,7 +85,7 @@ public class ProductId : ValueObject
         Value = value;
     }
 
-    protected override IEnumerable<object> GetEqualityComponents()
+    public override IEnumerable<object> GetEqualityComponents()
     {
         yield return Value;
     }
@@ -137,11 +137,10 @@ public class ShoppingCart : AggregateRoot<CartId>
     public IReadOnlyList<CartItem> Items => _items.AsReadOnly();
 
     // For event sourcing - parameterless constructor
-    protected ShoppingCart() { }
+    public ShoppingCart() : base(null!) { }
 
-    private ShoppingCart(CartId cartId, GuestToken guestToken)
+    private ShoppingCart(CartId cartId, GuestToken guestToken) : base(cartId)
     {
-        Id = cartId;
         CartId = cartId;
         GuestToken = guestToken;
     }
@@ -155,8 +154,7 @@ public class ShoppingCart : AggregateRoot<CartId>
         cart.ApplyEvent(new CartCreatedEvent
         {
             CartId = cartId,
-            GuestToken = guestToken,
-            OccurredAt = DateTime.UtcNow
+            GuestToken = guestToken
         });
         return cart;
     }
@@ -184,8 +182,7 @@ public class ShoppingCart : AggregateRoot<CartId>
             {
                 CartId = CartId,
                 ProductId = productId,
-                Quantity = quantity,
-                OccurredAt = DateTime.UtcNow
+                Quantity = quantity
             });
         }
     }
@@ -230,8 +227,7 @@ public class ShoppingCart : AggregateRoot<CartId>
             CartId = CartId,
             ProductId = productId,
             OldQuantity = oldQty,
-            NewQuantity = newQuantity,
-            OccurredAt = DateTime.UtcNow
+            NewQuantity = newQuantity
         });
     }
 
@@ -250,8 +246,7 @@ public class ShoppingCart : AggregateRoot<CartId>
         ApplyEvent(new CartItemRemovedEvent
         {
             CartId = CartId,
-            ProductId = productId,
-            OccurredAt = DateTime.UtcNow
+            ProductId = productId
         });
     }
 
@@ -265,13 +260,12 @@ public class ShoppingCart : AggregateRoot<CartId>
 
         ApplyEvent(new CartClearedEvent
         {
-            CartId = CartId,
-            OccurredAt = DateTime.UtcNow
+            CartId = CartId
         });
     }
 
     // Event handlers for event sourcing
-    protected override void When(object @event)
+    public override void ApplyEvent(IDomainEvent @event)
     {
         switch (@event)
         {

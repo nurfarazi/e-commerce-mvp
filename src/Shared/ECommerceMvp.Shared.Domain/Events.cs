@@ -11,6 +11,11 @@ public interface IDomainEvent
     string EventId { get; }
 
     /// <summary>
+    /// Aggregate ID that this event belongs to.
+    /// </summary>
+    string AggregateId { get; }
+
+    /// <summary>
     /// Type of event (fully qualified name).
     /// </summary>
     string EventType { get; }
@@ -38,6 +43,7 @@ public abstract class DomainEvent : IDomainEvent
     }
 
     public string EventId { get; }
+    public string AggregateId { get; set; } = string.Empty;
     public string EventType => GetType().FullName ?? GetType().Name;
     public abstract int EventVersion { get; }
     public DateTimeOffset OccurredAt { get; }
@@ -55,16 +61,18 @@ public class DomainEventEnvelope
         string? tenantId = null,
         string? userId = null)
     {
-        Event = @event ?? throw new ArgumentNullException(nameof(@event));
+        DomainEvent = @event ?? throw new ArgumentNullException(nameof(@event));
         CorrelationId = correlationId ?? throw new ArgumentNullException(nameof(correlationId));
         CausationId = causationId;
+        IdempotencyKey = causationId; // Use causationId as idempotency key
         TenantId = tenantId;
         UserId = userId;
     }
 
-    public IDomainEvent Event { get; }
+    public IDomainEvent DomainEvent { get; }
     public string CorrelationId { get; }
     public string? CausationId { get; }
+    public string? IdempotencyKey { get; }
     public string? TenantId { get; }
     public string? UserId { get; }
     public DateTimeOffset PublishedAt { get; set; } = DateTimeOffset.UtcNow;

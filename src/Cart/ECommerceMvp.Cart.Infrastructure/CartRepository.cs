@@ -1,5 +1,7 @@
 using ECommerceMvp.Shared.Application;
+using ECommerceMvp.Shared.Domain;
 using ECommerceMvp.Cart.Domain;
+using ECommerceMvp.Cart.Application;
 using MongoDB.Driver;
 using MongoDB.Bson;
 using System.Text.Json;
@@ -21,7 +23,7 @@ public class CartRepository : IRepository<ShoppingCart, CartId>
         _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
     }
 
-    public async Task<ShoppingCart?> GetByIdAsync(CartId id)
+    public async Task<ShoppingCart?> GetByIdAsync(CartId id, CancellationToken cancellationToken = default)
     {
         if (id == null)
             throw new ArgumentNullException(nameof(id));
@@ -29,26 +31,31 @@ public class CartRepository : IRepository<ShoppingCart, CartId>
         var streamId = $"cart-{id}";
         var events = await _eventStore.LoadStreamAsync(streamId);
 
-        if (events.Count == 0)
+        if (!events.Any())
             return null;
 
         var cart = new ShoppingCart();
-        cart.LoadFromHistory(events.Cast<object>().ToList());
+        cart.LoadFromHistory(events.Cast<IDomainEvent>().ToList());
         return cart;
     }
 
-    public async Task SaveAsync(ShoppingCart aggregate)
+    public async Task SaveAsync(ShoppingCart aggregate, CancellationToken cancellationToken = default)
     {
         if (aggregate == null)
             throw new ArgumentNullException(nameof(aggregate));
 
         var streamId = $"cart-{aggregate.CartId}";
-        var uncommittedEvents = aggregate.GetUncommittedEvents();
+        var uncommittedEvents = aggregate.UncommittedEvents;
 
         if (uncommittedEvents.Count == 0)
             return;
 
-        await _eventStore.AppendAsync(streamId, uncommittedEvents);
+        // AppendAsync with expectedVersion = -1 for append (no optimistic concurrency for now)
+        await _eventStore.AppendAsync(
+            streamId,
+            uncommittedEvents,
+            expectedVersion: -1,
+            correlationId: Guid.NewGuid().ToString());
         aggregate.ClearUncommittedEvents();
     }
 }
@@ -75,8 +82,8 @@ public class CartProjectionWriter : ICartProjectionWriter
             CartId = @event.CartId.Value,
             GuestToken = @event.GuestToken.Value,
             Items = new(),
-            CreatedAt = @event.OccurredAt,
-            LastModifiedAt = @event.OccurredAt
+            CreatedAt = @event.OccurredAt.DateTime,
+            LastModifiedAt = @event.OccurredAt.DateTime
         };
 
         await cartsCollection.InsertOneAsync(cartReadModel);
@@ -93,7 +100,7 @@ public class CartProjectionWriter : ICartProjectionWriter
                 ProductId = @event.ProductId.Value,
                 Quantity = @event.Quantity.Value
             })
-            .Set(c => c.LastModifiedAt, @event.OccurredAt);
+            .Set(c => c.LastModifiedAt, @event.OccurredAt.DateTime);
 
         await cartsCollection.UpdateOneAsync(filter, update);
     }
@@ -109,11 +116,11 @@ public class CartProjectionWriter : ICartProjectionWriter
 
         var update = Builders<CartReadModel>.Update
             .Set("Items.$[item].Quantity", @event.NewQuantity.Value)
-            .Set(c => c.LastModifiedAt, @event.OccurredAt);
+            .Set(c => c.LastModifiedAt, @event.OccurredAt.DateTime);
 
         var arrayFilters = new List<ArrayFilterDefinition>
         {
-            new BsonArrayFilterDefinition<BsonDocument>(
+            new BsonDocumentArrayFilterDefinition<BsonDocument>(
                 MongoDB.Bson.BsonDocument.Parse($"{{ 'item.ProductId': '{@event.ProductId.Value}' }}"))
         };
 
@@ -127,7 +134,7 @@ public class CartProjectionWriter : ICartProjectionWriter
         var filter = Builders<CartReadModel>.Filter.Eq(c => c.CartId, @event.CartId.Value);
         var update = Builders<CartReadModel>.Update
             .PullFilter(c => c.Items, i => i.ProductId == @event.ProductId.Value)
-            .Set(c => c.LastModifiedAt, @event.OccurredAt);
+            .Set(c => c.LastModifiedAt, @event.OccurredAt.DateTime);
 
         await cartsCollection.UpdateOneAsync(filter, update);
     }
@@ -139,7 +146,7 @@ public class CartProjectionWriter : ICartProjectionWriter
         var filter = Builders<CartReadModel>.Filter.Eq(c => c.CartId, @event.CartId.Value);
         var update = Builders<CartReadModel>.Update
             .Set(c => c.Items, new List<CartItemView>())
-            .Set(c => c.LastModifiedAt, @event.OccurredAt);
+            .Set(c => c.LastModifiedAt, @event.OccurredAt.DateTime);
 
         await cartsCollection.UpdateOneAsync(filter, update);
     }
