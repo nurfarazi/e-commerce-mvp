@@ -32,6 +32,13 @@ builder.Services.AddSingleton<IProductProjectionWriter>(sp =>
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
+// Configure Kestrel with flexible port binding
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    var port = int.TryParse(Environment.GetEnvironmentVariable("ASPNETCORE_PORT"), out var p) ? p : 5001;
+    serverOptions.ListenLocalhost(port);
+});
+
 var app = builder.Build();
 app.MapControllers();
 app.MapOpenApi();
