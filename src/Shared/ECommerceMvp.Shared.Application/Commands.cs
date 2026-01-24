@@ -17,6 +17,17 @@ public interface ICommandHandler<TCommand, TResponse> where TCommand : ICommand<
 }
 
 /// <summary>
+/// Command dispatcher for routing commands to appropriate handlers.
+/// </summary>
+public interface ICommandDispatcher
+{
+    Task<TResponse> DispatchAsync<TCommand, TResponse>(
+        TCommand command,
+        CancellationToken cancellationToken = default)
+        where TCommand : ICommand<TResponse>;
+}
+
+/// <summary>
 /// Metadata for command execution context.
 /// </summary>
 public class CommandContext

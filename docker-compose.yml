@@ -1,6 +1,7 @@
 version: '3.8'
 
 services:
+  # Infrastructure Services
   mongodb:
     image: mongo:7.0
     container_name: ecommerce-mongodb
@@ -16,6 +17,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ecommerce-network
 
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -33,7 +36,187 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - ecommerce-network
+
+  # ProductCatalog Services
+  productcatalog-commandapi:
+    build:
+      context: .
+      dockerfile: src/ProductCatalog/ECommerceMvp.ProductCatalog.CommandApi/Dockerfile
+    container_name: ecommerce-productcatalog-commandapi
+    ports:
+      - "5000:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  productcatalog-queryapi:
+    build:
+      context: .
+      dockerfile: src/ProductCatalog/ECommerceMvp.ProductCatalog.QueryApi/Dockerfile
+    container_name: ecommerce-productcatalog-queryapi
+    ports:
+      - "5001:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  productcatalog-commandhandler:
+    build:
+      context: .
+      dockerfile: src/ProductCatalog/ECommerceMvp.ProductCatalog.CommandHandler/Dockerfile
+    container_name: ecommerce-productcatalog-commandhandler
+    environment:
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  productcatalog-eventhandler:
+    build:
+      context: .
+      dockerfile: src/ProductCatalog/ECommerceMvp.ProductCatalog.EventHandler/Dockerfile
+    container_name: ecommerce-productcatalog-eventhandler
+    environment:
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  # Inventory Services
+  inventory-commandapi:
+    build:
+      context: .
+      dockerfile: src/Inventory/ECommerceMvp.Inventory.CommandApi/Dockerfile
+    container_name: ecommerce-inventory-commandapi
+    ports:
+      - "5002:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  inventory-queryapi:
+    build:
+      context: .
+      dockerfile: src/Inventory/ECommerceMvp.Inventory.QueryApi/Dockerfile
+    container_name: ecommerce-inventory-queryapi
+    ports:
+      - "5003:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  inventory-commandhandler:
+    build:
+      context: .
+      dockerfile: src/Inventory/ECommerceMvp.Inventory.CommandHandler/Dockerfile
+    container_name: ecommerce-inventory-commandhandler
+    environment:
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+
+  inventory-eventhandler:
+    build:
+      context: .
+      dockerfile: src/Inventory/ECommerceMvp.Inventory.EventHandler/Dockerfile
+    container_name: ecommerce-inventory-eventhandler
+    environment:
+      MongoDB__ConnectionString: mongodb://admin:admin@mongodb:27017
+      MongoDB__Database: ecommerce
+      RabbitMq__HostName: rabbitmq
+      RabbitMq__Port: 5672
+      RabbitMq__UserName: guest
+      RabbitMq__Password: guest
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
 
 volumes:
   mongodb-data:
   rabbitmq-data:
+
+networks:
+  ecommerce-network:
+    driver: bridge

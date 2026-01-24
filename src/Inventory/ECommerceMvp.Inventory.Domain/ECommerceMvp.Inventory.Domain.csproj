@@ -2,8 +2,13 @@
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../Shared/ECommerceMvp.Shared.Domain/ECommerceMvp.Shared.Domain.csproj" />
+  </ItemGroup>
 
 </Project>
