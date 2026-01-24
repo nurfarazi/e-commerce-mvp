@@ -67,3 +67,36 @@ public class ProductDeactivatedEvent : DomainEvent
 
     public override int EventVersion => 1;
 }
+
+/// <summary>
+/// Integration event: Product snapshots provided to checkout saga
+/// </summary>
+public class ProductSnapshotsProvidedEvent : DomainEvent
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public List<ProductSnapshot> ProductSnapshots { get; set; } = [];
+    public override int EventVersion => 1;
+}
+
+/// <summary>
+/// DTO: Product snapshot
+/// </summary>
+public class ProductSnapshot
+{
+    public string ProductId { get; set; } = string.Empty;
+    public string Sku { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public decimal Price { get; set; }
+    public string Currency { get; set; } = "USD";
+    public bool IsActive { get; set; }
+}
+
+/// <summary>
+/// Integration event: Product snapshot request failed
+/// </summary>
+public class ProductSnapshotFailedEvent : DomainEvent
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
+    public override int EventVersion => 1;
+}

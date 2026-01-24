@@ -234,6 +234,7 @@ public class ValidateStockCommandHandler : ICommandHandler<ValidateStockCommand,
 /// </summary>
 public class DeductStockForOrderCommand : ICommand<DeductStockForOrderResponse>
 {
+    public string CheckoutId { get; set; } = string.Empty;
     public string OrderId { get; set; } = string.Empty;
     public List<StockDeductionItem> Items { get; set; } = new();
 }
@@ -371,13 +372,13 @@ public class DeductStockForOrderCommandHandler : ICommandHandler<DeductStockForO
                         continue; // Already handled in first pass
 
                     var (quantity, inventoryItem) = deductionInfo;
-                    inventoryItem.DeductForOrder(command.OrderId, quantity);
+                    inventoryItem.DeductForOrder(command.OrderId, quantity, command.CheckoutId);
 
                     // Capture events
                     var itemEnvelopes = inventoryItem.UncommittedEvents
                         .Select(evt => new DomainEventEnvelope(
                             evt,
-                            Guid.NewGuid().ToString(),
+                            string.IsNullOrEmpty(command.CheckoutId) ? Guid.NewGuid().ToString() : command.CheckoutId,
                             null,
                             null,
                             null))
@@ -440,6 +441,105 @@ public class DeductStockForOrderCommandHandler : ICommandHandler<DeductStockForO
         {
             _logger.LogError(ex, "Error processing deduction for order {OrderId}", command.OrderId);
             return new DeductStockForOrderResponse { Success = false, Error = ex.Message };
+        }
+    }
+}
+
+/// <summary>
+/// Command: ValidateStockBatchCommand (validate stock availability for checkout saga)
+/// </summary>
+public class ValidateStockBatchCommand : ICommand<ValidateStockBatchResponse>
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public List<StockValidationItem> Items { get; set; } = [];
+}
+
+public class StockValidationItem
+{
+    public string ProductId { get; set; } = string.Empty;
+    public int RequestedQuantity { get; set; }
+}
+
+public class ValidateStockBatchResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Handler for ValidateStockBatchCommand
+/// Validates stock for all items and publishes StockBatchValidatedEvent
+/// </summary>
+public class ValidateStockBatchCommandHandler : ICommandHandler<ValidateStockBatchCommand, ValidateStockBatchResponse>
+{
+    private readonly IRepository<InventoryItem, string> _inventoryRepository;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ILogger<ValidateStockBatchCommandHandler> _logger;
+
+    public ValidateStockBatchCommandHandler(
+        IRepository<InventoryItem, string> inventoryRepository,
+        IEventPublisher eventPublisher,
+        ILogger<ValidateStockBatchCommandHandler> logger)
+    {
+        _inventoryRepository = inventoryRepository ?? throw new ArgumentNullException(nameof(inventoryRepository));
+        _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public async Task<ValidateStockBatchResponse> HandleAsync(ValidateStockBatchCommand command, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(command.CheckoutId))
+            return new ValidateStockBatchResponse { Success = false, Error = "CheckoutId is required" };
+
+        if (command.Items == null || command.Items.Count == 0)
+            return new ValidateStockBatchResponse { Success = false, Error = "Items are required" };
+
+        try
+        {
+            var results = new List<StockValidationResult>();
+            var allAvailable = true;
+
+            // Validate each product
+            foreach (var item in command.Items)
+            {
+                var inventory = await _inventoryRepository.GetByIdAsync(item.ProductId, cancellationToken);
+                var available = inventory?.AvailableQuantity >= item.RequestedQuantity;
+
+                results.Add(new StockValidationResult
+                {
+                    ProductId = item.ProductId,
+                    RequestedQuantity = item.RequestedQuantity,
+                    AvailableQuantity = inventory?.AvailableQuantity ?? 0,
+                    IsAvailable = available ?? false
+                });
+
+                if (!available)
+                    allAvailable = false;
+            }
+
+            // Publish validation result
+            await _eventPublisher.PublishAsync(new[]
+            {
+                new DomainEventEnvelope(
+                    new StockBatchValidatedEvent
+                    {
+                        AggregateId = command.CheckoutId,
+                        CheckoutId = command.CheckoutId,
+                        AllAvailable = allAvailable,
+                        Results = results
+                    },
+                    command.CheckoutId)
+            }, cancellationToken);
+
+            _logger.LogInformation("Stock batch validated for CheckoutId {CheckoutId}: {AvailableCount}/{TotalCount} items available",
+                command.CheckoutId, results.Count(r => r.IsAvailable), results.Count);
+
+            return new ValidateStockBatchResponse { Success = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error validating stock batch for CheckoutId {CheckoutId}", command.CheckoutId);
+            return new ValidateStockBatchResponse { Success = false, Error = ex.Message };
         }
     }
 }

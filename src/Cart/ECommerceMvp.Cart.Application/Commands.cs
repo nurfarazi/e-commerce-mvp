@@ -336,6 +336,7 @@ public class RemoveCartItemCommandHandler : ICommandHandler<RemoveCartItemComman
 /// </summary>
 public class ClearCartCommand : ICommand<ClearCartResponse>
 {
+    public string CheckoutId { get; set; } = string.Empty;
     public string GuestToken { get; set; } = null!;
 }
 
@@ -376,20 +377,20 @@ public class ClearCartCommandHandler : ICommandHandler<ClearCartCommand, ClearCa
             if (cart == null)
                 return new ClearCartResponse { Success = false, Error = "Cart not found" };
 
-            cart.Clear();
+            cart.Clear(command.CheckoutId);
             await _repository.SaveAsync(cart);
 
             var envelopes = cart.UncommittedEvents
                 .Select(evt => new DomainEventEnvelope(
                     evt,
-                    Guid.NewGuid().ToString(), // CorrelationId
+                    string.IsNullOrEmpty(command.CheckoutId) ? Guid.NewGuid().ToString() : command.CheckoutId, // Use CheckoutId as CorrelationId if provided
                     null,
                     null,
                     null))
                 .ToList();
             await _eventPublisher.PublishAsync(envelopes);
 
-            _logger.LogInformation("Cart {CartId} cleared", cartId);
+            _logger.LogInformation("Cart {CartId} cleared for CheckoutId {CheckoutId}", cartId, command.CheckoutId);
 
             return new ClearCartResponse { Success = true };
         }
@@ -397,6 +398,116 @@ public class ClearCartCommandHandler : ICommandHandler<ClearCartCommand, ClearCa
         {
             _logger.LogError(ex, "Error clearing cart for guest {GuestToken}", command.GuestToken);
             return new ClearCartResponse { Success = false, Error = ex.Message };
+        }
+    }
+}
+
+/// <summary>
+/// Command: GetCartSnapshotCommand (provide cart snapshot to checkout saga)
+/// </summary>
+public class GetCartSnapshotCommand : ICommand<GetCartSnapshotResponse>
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public string GuestToken { get; set; } = string.Empty;
+    public string CartId { get; set; } = string.Empty;
+}
+
+public class GetCartSnapshotResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Command Handler: GetCartSnapshotCommand
+/// Loads cart and publishes CartSnapshotProvidedEvent
+/// </summary>
+public class GetCartSnapshotCommandHandler : ICommandHandler<GetCartSnapshotCommand, GetCartSnapshotResponse>
+{
+    private readonly IRepository<ShoppingCart, CartId> _repository;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ILogger<GetCartSnapshotCommandHandler> _logger;
+
+    public GetCartSnapshotCommandHandler(
+        IRepository<ShoppingCart, CartId> repository,
+        IEventPublisher eventPublisher,
+        ILogger<GetCartSnapshotCommandHandler> logger)
+    {
+        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public async Task<GetCartSnapshotResponse> HandleAsync(GetCartSnapshotCommand command, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(command.CheckoutId))
+            return new GetCartSnapshotResponse { Success = false, Error = "CheckoutId is required" };
+
+        if (string.IsNullOrWhiteSpace(command.GuestToken))
+            return new GetCartSnapshotResponse { Success = false, Error = "GuestToken is required" };
+
+        try
+        {
+            var cartId = new CartId($"cart-{command.GuestToken}");
+            var cart = await _repository.GetByIdAsync(cartId);
+
+            if (cart == null || cart.Items.Count == 0)
+            {
+                // Publish failure event
+                await _eventPublisher.PublishAsync(new[]
+                {
+                    new DomainEventEnvelope(
+                        new CartSnapshotFailedEvent
+                        {
+                            AggregateId = command.CheckoutId,
+                            CheckoutId = command.CheckoutId,
+                            Reason = cart == null ? "Cart not found" : "Cart is empty"
+                        },
+                        command.CheckoutId,
+                        null,
+                        null,
+                        null)
+                });
+
+                _logger.LogWarning("Cart snapshot failed for CheckoutId {CheckoutId}: {Reason}",
+                    command.CheckoutId, cart == null ? "Cart not found" : "Cart is empty");
+                return new GetCartSnapshotResponse { Success = false, Error = "Cart not found or empty" };
+            }
+
+            // Build snapshots
+            var cartItems = cart.Items.Select(item => new CartItemSnapshot
+            {
+                ProductId = item.ProductId.Value,
+                Quantity = item.Quantity.Value
+            }).ToList();
+
+            // Publish success event
+            await _eventPublisher.PublishAsync(new[]
+            {
+                new DomainEventEnvelope(
+                    new CartSnapshotProvidedEvent
+                    {
+                        AggregateId = command.CheckoutId,
+                        CheckoutId = command.CheckoutId,
+                        CartId = cartId.Value,
+                        GuestToken = command.GuestToken,
+                        CartItems = cartItems
+                    },
+                    command.CheckoutId,
+                    null,
+                    null,
+                    null)
+            });
+
+            _logger.LogInformation("Cart snapshot provided for CheckoutId {CheckoutId} with {ItemCount} items",
+                command.CheckoutId, cartItems.Count);
+
+            return new GetCartSnapshotResponse { Success = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting cart snapshot for guest {GuestToken}", command.GuestToken);
+            return new GetCartSnapshotResponse { Success = false, Error = ex.Message };
         }
     }
 }

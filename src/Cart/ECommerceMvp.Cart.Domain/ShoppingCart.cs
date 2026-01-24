@@ -253,14 +253,15 @@ public class ShoppingCart : AggregateRoot<CartId>
     /// <summary>
     /// Clear all items from cart
     /// </summary>
-    public void Clear()
+    public void Clear(string checkoutId = "")
     {
         if (_items.Count == 0)
             return;
 
         ApplyEvent(new CartClearedEvent
         {
-            CartId = CartId
+            CartId = CartId,
+            CheckoutId = checkoutId
         });
     }
 

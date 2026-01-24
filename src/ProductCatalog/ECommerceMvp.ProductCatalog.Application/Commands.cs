@@ -427,5 +427,113 @@ public class DeactivateProductCommandHandler : ICommandHandler<DeactivateProduct
     }
 }
 
+/// <summary>
+/// Command: GetProductSnapshotsCommand (provide product snapshots to checkout saga)
+/// </summary>
+public class GetProductSnapshotsCommand : ICommand<GetProductSnapshotsResponse>
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public List<string> ProductIds { get; set; } = [];
+}
+
+public class GetProductSnapshotsResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Handler for GetProductSnapshotsCommand
+/// Loads products and publishes ProductSnapshotsProvidedEvent
+/// </summary>
+public class GetProductSnapshotsCommandHandler : ICommandHandler<GetProductSnapshotsCommand, GetProductSnapshotsResponse>
+{
+    private readonly IRepository<Product, string> _productRepository;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ILogger<GetProductSnapshotsCommandHandler> _logger;
+
+    public GetProductSnapshotsCommandHandler(
+        IRepository<Product, string> productRepository,
+        IEventPublisher eventPublisher,
+        ILogger<GetProductSnapshotsCommandHandler> logger)
+    {
+        _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
+        _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public async Task<GetProductSnapshotsResponse> HandleAsync(GetProductSnapshotsCommand command, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(command.CheckoutId))
+            return new GetProductSnapshotsResponse { Success = false, Error = "CheckoutId is required" };
+
+        if (command.ProductIds == null || command.ProductIds.Count == 0)
+            return new GetProductSnapshotsResponse { Success = false, Error = "ProductIds are required" };
+
+        try
+        {
+            var snapshots = new List<ProductSnapshot>();
+
+            // Load products and create snapshots
+            foreach (var productId in command.ProductIds)
+            {
+                var product = await _productRepository.GetByIdAsync(productId, cancellationToken);
+                if (product == null)
+                {
+                    // Publish failure event
+                    await _eventPublisher.PublishAsync(new[]
+                    {
+                        new DomainEventEnvelope(
+                            new ProductSnapshotFailedEvent
+                            {
+                                AggregateId = command.CheckoutId,
+                                CheckoutId = command.CheckoutId,
+                                Reason = $"Product {productId} not found"
+                            },
+                            command.CheckoutId)
+                    }, cancellationToken);
+
+                    _logger.LogWarning("Product snapshot failed for CheckoutId {CheckoutId}: Product {ProductId} not found",
+                        command.CheckoutId, productId);
+                    return new GetProductSnapshotsResponse { Success = false, Error = $"Product {productId} not found" };
+                }
+
+                snapshots.Add(new ProductSnapshot
+                {
+                    ProductId = product.Id,
+                    Sku = product.Sku.Value,
+                    Name = product.Name.Value,
+                    Price = product.Price.Amount,
+                    Currency = product.Price.Currency,
+                    IsActive = product.IsActive
+                });
+            }
+
+            // Publish success event
+            await _eventPublisher.PublishAsync(new[]
+            {
+                new DomainEventEnvelope(
+                    new ProductSnapshotsProvidedEvent
+                    {
+                        AggregateId = command.CheckoutId,
+                        CheckoutId = command.CheckoutId,
+                        ProductSnapshots = snapshots
+                    },
+                    command.CheckoutId)
+            }, cancellationToken);
+
+            _logger.LogInformation("Product snapshots provided for CheckoutId {CheckoutId} with {SnapshotCount} products",
+                command.CheckoutId, snapshots.Count);
+
+            return new GetProductSnapshotsResponse { Success = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting product snapshots for CheckoutId {CheckoutId}", command.CheckoutId);
+            return new GetProductSnapshotsResponse { Success = false, Error = ex.Message };
+        }
+    }
+}
+
 #endregion
 

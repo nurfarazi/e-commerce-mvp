@@ -35,6 +35,7 @@ public class StockSetEvent : DomainEvent
 /// </summary>
 public class StockDeductedForOrderEvent : DomainEvent
 {
+    public string CheckoutId { get; set; } = string.Empty;
     public string OrderId { get; set; } = string.Empty;
     public string ProductId { get; set; } = string.Empty;
     public int QuantityDeducted { get; set; }
@@ -57,4 +58,26 @@ public class StockDeductionRejectedEvent : DomainEvent
     public string Reason { get; set; } = string.Empty;
 
     public override int EventVersion => 1;
+}
+
+/// <summary>
+/// Integration event: Stock batch validation completed
+/// </summary>
+public class StockBatchValidatedEvent : DomainEvent
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public bool AllAvailable { get; set; }
+    public List<StockValidationResult> Results { get; set; } = [];
+    public override int EventVersion => 1;
+}
+
+/// <summary>
+/// DTO: Stock validation result
+/// </summary>
+public class StockValidationResult
+{
+    public string ProductId { get; set; } = string.Empty;
+    public int RequestedQuantity { get; set; }
+    public int AvailableQuantity { get; set; }
+    public bool IsAvailable { get; set; }
 }

@@ -51,5 +51,37 @@ public class CartItemRemovedEvent : DomainEvent
 public class CartClearedEvent : DomainEvent
 {
     public CartId CartId { get; set; } = null!;
+    public string CheckoutId { get; set; } = string.Empty;
+    public override int EventVersion => 1;
+}
+
+/// <summary>
+/// Domain Event: CartSnapshotProvided (published by cart service for checkout saga)
+/// </summary>
+public class CartSnapshotProvidedEvent : DomainEvent
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public string CartId { get; set; } = string.Empty;
+    public string GuestToken { get; set; } = string.Empty;
+    public List<CartItemSnapshot> CartItems { get; set; } = [];
+    public override int EventVersion => 1;
+}
+
+/// <summary>
+/// DTO: Cart item snapshot
+/// </summary>
+public class CartItemSnapshot
+{
+    public string ProductId { get; set; } = string.Empty;
+    public int Quantity { get; set; }
+}
+
+/// <summary>
+/// Domain Event: CartSnapshotFailed (published when snapshot request fails)
+/// </summary>
+public class CartSnapshotFailedEvent : DomainEvent
+{
+    public string CheckoutId { get; set; } = string.Empty;
+    public string Reason { get; set; } = string.Empty;
     public override int EventVersion => 1;
 }

@@ -169,7 +169,7 @@ public class InventoryItem : AggregateRoot<string>
     /// Throws if insufficient inventory.
     /// Behavior: DeductForOrder(orderId, qty)
     /// </summary>
-    public void DeductForOrder(string orderId, int quantityToDeduct)
+    public void DeductForOrder(string orderId, int quantityToDeduct, string checkoutId = "")
     {
         if (string.IsNullOrWhiteSpace(orderId))
             throw new ArgumentException("Order ID cannot be empty", nameof(orderId));
@@ -197,6 +197,7 @@ public class InventoryItem : AggregateRoot<string>
         var newQuantity = AvailableQuantity - qty.Amount;
         var @event = new StockDeductedForOrderEvent
         {
+            CheckoutId = checkoutId,
             OrderId = orderId,
             ProductId = ProductId,
             QuantityDeducted = qty.Amount,
