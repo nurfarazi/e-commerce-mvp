@@ -1,0 +1,101 @@
+### E-Commerce MVP - Product Catalog API Testing
+### Prerequisites: All 4 services must be running
+### - CommandApi on :5000
+### - QueryApi on :5001
+### - CommandHandler (worker)
+### - EventHandler (worker)
+
+@baseUrlCommand = http://localhost:5000
+@baseUrlQuery = http://localhost:5001
+
+### ============================================
+### 1. CREATE PRODUCT
+### ============================================
+POST {{baseUrlCommand}}/api/products
+Content-Type: application/json
+
+{
+  "productId": "PROD-001",
+  "name": "MacBook Pro 16",
+  "description": "High-performance laptop for professionals",
+  "sku": "MB16-2024",
+  "price": 2499.99,
+  "currency": "USD"
+}
+
+### ============================================
+### 2. QUERY PRODUCT (wait 1-2 seconds after create)
+### ============================================
+GET {{baseUrlQuery}}/api/products/PROD-001
+
+### ============================================
+### 3. ACTIVATE PRODUCT
+### ============================================
+PUT {{baseUrlCommand}}/api/products/PROD-001/activate
+
+### ============================================
+### 4. VERIFY PRODUCT IS ACTIVE (wait 1-2 seconds)
+### ============================================
+GET {{baseUrlQuery}}/api/products/PROD-001
+
+### ============================================
+### 5. LIST ALL ACTIVE PRODUCTS
+### ============================================
+GET {{baseUrlQuery}}/api/products?isActive=true&page=1&pageSize=20
+
+### ============================================
+### 6. CREATE SECOND PRODUCT
+### ============================================
+POST {{baseUrlCommand}}/api/products
+Content-Type: application/json
+
+{
+  "productId": "PROD-002",
+  "name": "iPhone 15 Pro",
+  "description": "Latest iPhone with A18 Pro chip",
+  "sku": "IP15-2024",
+  "price": 999.99,
+  "currency": "USD"
+}
+
+### ============================================
+### 7. CREATE THIRD PRODUCT
+### ============================================
+POST {{baseUrlCommand}}/api/products
+Content-Type: application/json
+
+{
+  "productId": "PROD-003",
+  "name": "Samsung Galaxy S24",
+  "description": "Flagship Android smartphone",
+  "sku": "SGS24-2024",
+  "price": 899.99,
+  "currency": "USD"
+}
+
+### ============================================
+### 8. ACTIVATE SECOND PRODUCT
+### ============================================
+PUT {{baseUrlCommand}}/api/products/PROD-002/activate
+
+### ============================================
+### 9. LIST ALL PRODUCTS (pagination)
+### ============================================
+GET {{baseUrlQuery}}/api/products?page=1&pageSize=50
+
+### ============================================
+### 10. QUERY INACTIVE PRODUCTS
+### ============================================
+GET {{baseUrlQuery}}/api/products?isActive=false
+
+### ============================================
+### TESTING FLOW NOTES
+### ============================================
+### 1. Run requests in order: 1 → 2 → 3 → 4 → 5
+### 2. After each CREATE (1, 6, 7): Wait 1-2 seconds before querying
+### 3. After each ACTIVATE (3, 8): Wait 1-2 seconds before checking
+### 4. Observe RabbitMQ message flow in worker logs
+### 5. Check MongoDB with: mongosh mongodb://admin:admin@localhost:27017
+###    - use ecommerce
+###    - db.Products.find()
+###    - db.EventStore.find()

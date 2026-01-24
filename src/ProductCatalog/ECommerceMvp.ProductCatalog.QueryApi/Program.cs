@@ -21,8 +21,7 @@ var mongoOptions = new MongoDbOptions
     DatabaseName = builder.Configuration["MongoDB:Database"] ?? "ecommerce"
 };
 
-var mongoClient = new MongoClient(mongoOptions.ConnectionString);
-builder.Services.AddSingleton(mongoClient);
+var mongoClient = new MongoClient(mongoOptions.ConnectionString); builder.Services.AddSingleton(mongoClient); builder.Services.AddSingleton(mongoClient);
 builder.Services.AddSingleton(mongoOptions);
 
 // Register ProductProjectionWriter for dependency access
