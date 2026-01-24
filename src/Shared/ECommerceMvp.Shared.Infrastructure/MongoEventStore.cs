@@ -90,9 +90,18 @@ public class MongoEventStore : IEventStore
 
         using (var session = _eventsCollection.Database.Client.StartSession())
         {
-            session.StartTransaction();
             try
             {
+                // Try to start a transaction (only works with replica sets)
+                try
+                {
+                    session.StartTransaction();
+                }
+                catch (NotSupportedException)
+                {
+                    _logger.LogWarning("Transactions not supported (standalone MongoDB). Using non-transactional writes.");
+                }
+
                 // Insert events
                 await _eventsCollection.InsertManyAsync(session, eventDocuments, cancellationToken: cancellationToken).ConfigureAwait(false);
 
@@ -120,13 +129,25 @@ public class MongoEventStore : IEventStore
                         cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
 
-                await session.CommitTransactionAsync(cancellationToken).ConfigureAwait(false);
+                if (session.IsInTransaction)
+                {
+                    await session.CommitTransactionAsync(cancellationToken).ConfigureAwait(false);
+                }
+
                 _logger.LogDebug("Appended {EventCount} events to stream {StreamId}, new version {NewVersion}",
                     eventDocuments.Count, streamId, newVersion);
             }
-            catch
+            catch (Exception ex)
             {
-                await session.AbortTransactionAsync(cancellationToken).ConfigureAwait(false);
+                _logger.LogError(ex, "Error appending events to stream {StreamId}", streamId);
+                if (session.IsInTransaction)
+                {
+                    try
+                    {
+                        await session.AbortTransactionAsync(cancellationToken).ConfigureAwait(false);
+                    }
+                    catch { }
+                }
                 throw;
             }
         }

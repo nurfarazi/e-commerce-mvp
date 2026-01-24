@@ -39,6 +39,13 @@ builder.WebHost.ConfigureKestrel(serverOptions =>
 });
 
 var app = builder.Build();
+
+// Enable detailed error pages
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+
 app.MapControllers();
 app.MapOpenApi();
 app.Run();

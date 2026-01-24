@@ -1,5 +1,6 @@
 using ECommerceMvp.ProductCatalog.Application;
 using ECommerceMvp.Shared.Application;
+using ECommerceMvp.Shared.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ECommerceMvp.ProductCatalog.CommandApi.Controllers;
@@ -8,17 +9,14 @@ namespace ECommerceMvp.ProductCatalog.CommandApi.Controllers;
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
 {
-    private readonly ICommandHandler<CreateProductCommand, CreateProductResponse> _createProductHandler;
-    private readonly ICommandHandler<ActivateProductCommand, ActivateProductResponse> _activateProductHandler;
+    private readonly ICommandEnqueuer _commandEnqueuer;
     private readonly ILogger<ProductsController> _logger;
 
     public ProductsController(
-        ICommandHandler<CreateProductCommand, CreateProductResponse> createProductHandler,
-        ICommandHandler<ActivateProductCommand, ActivateProductResponse> activateProductHandler,
+        ICommandEnqueuer commandEnqueuer,
         ILogger<ProductsController> logger)
     {
-        _createProductHandler = createProductHandler ?? throw new ArgumentNullException(nameof(createProductHandler));
-        _activateProductHandler = activateProductHandler ?? throw new ArgumentNullException(nameof(activateProductHandler));
+        _commandEnqueuer = commandEnqueuer ?? throw new ArgumentNullException(nameof(commandEnqueuer));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -26,6 +24,16 @@ public class ProductsController : ControllerBase
     public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequest request, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Create product request: {ProductId}", request.ProductId);
+
+        // Validate request
+        if (string.IsNullOrWhiteSpace(request.ProductId))
+            return BadRequest(new { error = "ProductId is required" });
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+            return BadRequest(new { error = "Name is required" });
+
+        if (request.Price < 0)
+            return BadRequest(new { error = "Price cannot be negative" });
 
         var command = new CreateProductCommand
         {
@@ -37,12 +45,10 @@ public class ProductsController : ControllerBase
             Currency = request.Currency ?? "USD"
         };
 
-        var result = await _createProductHandler.HandleAsync(command, cancellationToken);
+        // Enqueue command to RabbitMQ
+        await _commandEnqueuer.EnqueueAsync(command, "productcatalog.commands", cancellationToken);
 
-        if (!result.Success)
-            return BadRequest(new { error = result.Error });
-
-        return Accepted(new { requestId = Guid.NewGuid(), productId = result.ProductId });
+        return Accepted(new { requestId = Guid.NewGuid(), productId = request.ProductId, status = "accepted" });
     }
 
     [HttpPut("{productId}/activate")]
@@ -50,13 +56,15 @@ public class ProductsController : ControllerBase
     {
         _logger.LogInformation("Activate product request: {ProductId}", productId);
 
+        if (string.IsNullOrWhiteSpace(productId))
+            return BadRequest(new { error = "ProductId is required" });
+
         var command = new ActivateProductCommand { ProductId = productId };
-        var result = await _activateProductHandler.HandleAsync(command, cancellationToken);
 
-        if (!result.Success)
-            return BadRequest(new { error = result.Error });
+        // Enqueue command to RabbitMQ
+        await _commandEnqueuer.EnqueueAsync(command, "productcatalog.commands", cancellationToken);
 
-        return Ok(new { message = "Product activated" });
+        return Accepted(new { requestId = Guid.NewGuid(), productId = productId, status = "accepted" });
     }
 
     public class CreateProductRequest

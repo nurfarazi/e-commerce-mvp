@@ -1,4 +1,5 @@
 using ECommerceMvp.ProductCatalog.Application;
+using ECommerceMvp.Shared.Application;
 using ECommerceMvp.Shared.Infrastructure;
 using RabbitMQ.Client;
 using RabbitMQ.Client.Events;
@@ -91,7 +92,38 @@ public class ProductCommandWorker : BackgroundService
 
                 _logger.LogDebug("Received command: {Json}", json);
 
-                // For now, just acknowledge (in real implementation, route to appropriate handler)
+                // Deserialize the command envelope
+                using (var scope = _serviceProvider.CreateScope())
+                {
+                    var commandDoc = JsonDocument.Parse(json);
+                    var root = commandDoc.RootElement;
+                    var commandType = root.GetProperty("CommandType").GetString();
+                    var payload = root.GetProperty("Payload");
+
+                    // Route to appropriate handler based on command type
+                    if (commandType == "CreateProductCommand")
+                    {
+                        var cmd = JsonSerializer.Deserialize<CreateProductCommand>(payload.GetRawText());
+                        var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<CreateProductCommand, CreateProductResponse>>();
+                        var result = await handler.HandleAsync(cmd!, CancellationToken.None).ConfigureAwait(false);
+
+                        _logger.LogInformation("CreateProductCommand processed: {Result}", result.Success);
+                    }
+                    else if (commandType == "ActivateProductCommand")
+                    {
+                        var cmd = JsonSerializer.Deserialize<ActivateProductCommand>(payload.GetRawText());
+                        var handler = scope.ServiceProvider.GetRequiredService<ICommandHandler<ActivateProductCommand, ActivateProductResponse>>();
+                        var result = await handler.HandleAsync(cmd!, CancellationToken.None).ConfigureAwait(false);
+
+                        _logger.LogInformation("ActivateProductCommand processed: {Result}", result.Success);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Unknown command type: {CommandType}", commandType);
+                    }
+                }
+
+                // Acknowledge successful processing
                 _channel.BasicAck(ea.DeliveryTag, false);
                 
                 await Task.CompletedTask.ConfigureAwait(false);

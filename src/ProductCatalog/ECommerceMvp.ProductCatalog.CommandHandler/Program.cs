@@ -24,7 +24,7 @@ var host = Host.CreateDefaultBuilder(args)
         };
 
         var mongoClient = new MongoClient(mongoOptions.ConnectionString);
-        services.AddSingleton(mongoClient);
+        services.AddSingleton<IMongoClient>(mongoClient);
         services.AddSingleton(mongoOptions);
 
         // RabbitMQ

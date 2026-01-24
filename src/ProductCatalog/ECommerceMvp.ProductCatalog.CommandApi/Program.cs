@@ -41,14 +41,17 @@ builder.Services.AddSingleton(rabbitMqOptions);
 builder.Services.AddSingleton<IEventStore, MongoEventStore>();
 builder.Services.AddSingleton<IIdempotencyStore, MongoIdempotencyStore>();
 builder.Services.AddSingleton<IEventPublisher, RabbitMqEventPublisher>();
-
-// ProductCatalog services
-builder.Services.AddScoped<IRepository<ECommerceMvp.ProductCatalog.Domain.Product, string>, ProductRepository>();
-builder.Services.AddScoped<ICommandHandler<CreateProductCommand, CreateProductResponse>, CreateProductCommandHandler>();
-builder.Services.AddScoped<ICommandHandler<ActivateProductCommand, ActivateProductResponse>, ActivateProductCommandHandler>();
+builder.Services.AddSingleton<ICommandEnqueuer, RabbitMqCommandEnqueuer>();
 
 builder.Services.AddControllers();
 
 var app = builder.Build();
+
+// Enable detailed error pages
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
+}
+
 app.MapControllers();
 app.Run();

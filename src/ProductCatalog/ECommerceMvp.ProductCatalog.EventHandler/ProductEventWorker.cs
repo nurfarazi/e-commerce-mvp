@@ -1,4 +1,5 @@
 using ECommerceMvp.ProductCatalog.Application;
+using ECommerceMvp.ProductCatalog.Domain;
 using ECommerceMvp.ProductCatalog.Infrastructure;
 using ECommerceMvp.Shared.Application;
 using ECommerceMvp.Shared.Infrastructure;
@@ -95,7 +96,7 @@ public class ProductEventWorker : BackgroundService
             throw new InvalidOperationException("Channel not initialized");
 
         var consumer = new EventingBasicConsumer(_channel);
-        consumer.Received += (model, ea) =>
+        consumer.Received += async (model, ea) =>
         {
             try
             {
@@ -104,7 +105,57 @@ public class ProductEventWorker : BackgroundService
 
                 _logger.LogDebug("Received event: {Json}", json);
 
-                // For now, just acknowledge (in real implementation, process event and update projection)
+                // Deserialize the event
+                using var jsonDoc = JsonDocument.Parse(json);
+                var root = jsonDoc.RootElement;
+                var eventType = root.GetProperty("eventType").GetString();
+                var correlationId = root.GetProperty("correlationId").GetString() ?? "unknown";
+                var eventData = root.GetProperty("eventData");
+
+                // Use a scope to get services
+                using var scope = _serviceProvider.CreateAsyncScope();
+                var projectionWriter = scope.ServiceProvider.GetRequiredService<IProductProjectionWriter>();
+
+                // Process event based on type
+                switch (eventType)
+                {
+                    case "ProductCreated":
+                        {
+                            var @event = JsonSerializer.Deserialize<ProductCreatedEvent>(eventData.GetRawText())
+                                ?? throw new InvalidOperationException("Failed to deserialize ProductCreatedEvent");
+                            await projectionWriter.HandleProductCreatedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
+                            _logger.LogInformation("Processed ProductCreated event for {ProductId}", @event.ProductId);
+                            break;
+                        }
+                    case "ProductUpdated":
+                        {
+                            var @event = JsonSerializer.Deserialize<ProductUpdatedEvent>(eventData.GetRawText())
+                                ?? throw new InvalidOperationException("Failed to deserialize ProductUpdatedEvent");
+                            await projectionWriter.HandleProductUpdatedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
+                            _logger.LogInformation("Processed ProductUpdated event for {ProductId}", @event.ProductId);
+                            break;
+                        }
+                    case "ProductActivated":
+                        {
+                            var @event = JsonSerializer.Deserialize<ProductActivatedEvent>(eventData.GetRawText())
+                                ?? throw new InvalidOperationException("Failed to deserialize ProductActivatedEvent");
+                            await projectionWriter.HandleProductActivatedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
+                            _logger.LogInformation("Processed ProductActivated event for {ProductId}", @event.ProductId);
+                            break;
+                        }
+                    case "ProductDeactivated":
+                        {
+                            var @event = JsonSerializer.Deserialize<ProductDeactivatedEvent>(eventData.GetRawText())
+                                ?? throw new InvalidOperationException("Failed to deserialize ProductDeactivatedEvent");
+                            await projectionWriter.HandleProductDeactivatedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
+                            _logger.LogInformation("Processed ProductDeactivated event for {ProductId}", @event.ProductId);
+                            break;
+                        }
+                    default:
+                        _logger.LogWarning("Unknown event type: {EventType}", eventType);
+                        break;
+                }
+
                 _channel.BasicAck(ea.DeliveryTag, false);
             }
             catch (Exception ex)
