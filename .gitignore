@@ -30,7 +30,6 @@ bld/
 .vs/
 
 # Visual Studio Code
-.vscode/
 *.code-workspace
 
 # Rider
