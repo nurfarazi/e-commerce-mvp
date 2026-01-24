@@ -12,6 +12,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ProductCatalog", "ProductCa
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Inventory", "Inventory", "{5D5D5D5D-5D5D-5D5D-5D5D-5D5D5D5D5D5D}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Cart", "Cart", "{6E6E6E6E-6E6E-6E6E-6E6E-6E6E6E6E6E6E}"
+EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Shared.Domain", "src\Shared\ECommerceMvp.Shared.Domain\ECommerceMvp.Shared.Domain.csproj", "{5E5E5E5E-5E5E-5E5E-5E5E-5E5E5E5E5E5E}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Shared.Application", "src\Shared\ECommerceMvp.Shared.Application\ECommerceMvp.Shared.Application.csproj", "{6F6F6F6F-6F6F-6F6F-6F6F-6F6F6F6F6F6F}"
@@ -49,6 +51,20 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.Domain.Tests", "tests\ECommerceMvp.ProductCatalog.Domain.Tests\ECommerceMvp.ProductCatalog.Domain.Tests.csproj", "{15O15O15O-15O5-15O5-15O5-15O515O515O5}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.Application.Tests", "tests\ECommerceMvp.ProductCatalog.Application.Tests\ECommerceMvp.ProductCatalog.Application.Tests.csproj", "{16P16P16P-16P6-16P6-16P6-16P616P616P6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Cart.Domain", "src\Cart\ECommerceMvp.Cart.Domain\ECommerceMvp.Cart.Domain.csproj", "{24X24X24X-24X4-24X4-24X4-24X424X424X4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Cart.Application", "src\Cart\ECommerceMvp.Cart.Application\ECommerceMvp.Cart.Application.csproj", "{25Y25Y25Y-25Y5-25Y5-25Y5-25Y525Y525Y5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Cart.Infrastructure", "src\Cart\ECommerceMvp.Cart.Infrastructure\ECommerceMvp.Cart.Infrastructure.csproj", "{26Z26Z26Z-26Z6-26Z6-26Z6-26Z626Z626Z6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Cart.CommandApi", "src\Cart\ECommerceMvp.Cart.CommandApi\ECommerceMvp.Cart.CommandApi.csproj", "{27A27A27A-27A7-27A7-27A7-27A727A727A7}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Cart.CommandHandler", "src\Cart\ECommerceMvp.Cart.CommandHandler\ECommerceMvp.Cart.CommandHandler.csproj", "{28B28B28B-28B8-28B8-28B8-28B828B828B8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Cart.QueryApi", "src\Cart\ECommerceMvp.Cart.QueryApi\ECommerceMvp.Cart.QueryApi.csproj", "{29C29C29C-29C9-29C9-29C9-29C929C929C9}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Cart.EventHandler", "src\Cart\ECommerceMvp.Cart.EventHandler\ECommerceMvp.Cart.EventHandler.csproj", "{30D30D30D-30D0-30D0-30D0-30D030D030D0}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -132,6 +148,34 @@ Global
 		{16P16P16P-16P6-16P6-16P6-16P616P616P6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{16P16P16P-16P6-16P6-16P6-16P616P616P6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{16P16P16P-16P6-16P6-16P6-16P616P616P6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{24X24X24X-24X4-24X4-24X4-24X424X424X4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{24X24X24X-24X4-24X4-24X4-24X424X424X4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{24X24X24X-24X4-24X4-24X4-24X424X424X4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{24X24X24X-24X4-24X4-24X4-24X424X424X4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{25Y25Y25Y-25Y5-25Y5-25Y5-25Y525Y525Y5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{25Y25Y25Y-25Y5-25Y5-25Y5-25Y525Y525Y5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{25Y25Y25Y-25Y5-25Y5-25Y5-25Y525Y525Y5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{25Y25Y25Y-25Y5-25Y5-25Y5-25Y525Y525Y5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{26Z26Z26Z-26Z6-26Z6-26Z6-26Z626Z626Z6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{26Z26Z26Z-26Z6-26Z6-26Z6-26Z626Z626Z6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{26Z26Z26Z-26Z6-26Z6-26Z6-26Z626Z626Z6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{26Z26Z26Z-26Z6-26Z6-26Z6-26Z626Z626Z6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{27A27A27A-27A7-27A7-27A7-27A727A727A7}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{27A27A27A-27A7-27A7-27A7-27A727A727A7}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{27A27A27A-27A7-27A7-27A7-27A727A727A7}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{27A27A27A-27A7-27A7-27A7-27A727A727A7}.Release|Any CPU.Build.0 = Release|Any CPU
+		{28B28B28B-28B8-28B8-28B8-28B828B828B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{28B28B28B-28B8-28B8-28B8-28B828B828B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{28B28B28B-28B8-28B8-28B8-28B828B828B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{28B28B28B-28B8-28B8-28B8-28B828B828B8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{29C29C29C-29C9-29C9-29C9-29C929C929C9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{29C29C29C-29C9-29C9-29C9-29C929C929C9}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{29C29C29C-29C9-29C9-29C9-29C929C929C9}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{29C29C29C-29C9-29C9-29C9-29C929C929C9}.Release|Any CPU.Build.0 = Release|Any CPU
+		{30D30D30D-30D0-30D0-30D0-30D030D030D0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{30D30D30D-30D0-30D0-30D0-30D030D030D0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{30D30D30D-30D0-30D0-30D0-30D030D030D0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{30D30D30D-30D0-30D0-30D0-30D030D030D0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{3C3C3C3C-3C3C-3C3C-3C3C-3C3C3C3C3C3C} = {1A1A1A1A-1A1A-1A1A-1A1A-1A1A1A1A1A1A}
@@ -156,5 +200,12 @@ Global
 		{23W23W23W-23W3-23W3-23W3-23W323W323W3} = {5D5D5D5D-5D5D-5D5D-5D5D-5D5D5D5D5D5D}
 		{15O15O15O-15O5-15O5-15O5-15O515O515O5} = {2B2B2B2B-2B2B-2B2B-2B2B-2B2B2B2B2B2B}
 		{16P16P16P-16P6-16P6-16P6-16P616P616P6} = {2B2B2B2B-2B2B-2B2B-2B2B-2B2B2B2B2B2B}
+		{24X24X24X-24X4-24X4-24X4-24X424X424X4} = {6E6E6E6E-6E6E-6E6E-6E6E-6E6E6E6E6E6E}
+		{25Y25Y25Y-25Y5-25Y5-25Y5-25Y525Y525Y5} = {6E6E6E6E-6E6E-6E6E-6E6E-6E6E6E6E6E6E}
+		{26Z26Z26Z-26Z6-26Z6-26Z6-26Z626Z626Z6} = {6E6E6E6E-6E6E-6E6E-6E6E-6E6E6E6E6E6E}
+		{27A27A27A-27A7-27A7-27A7-27A727A727A7} = {6E6E6E6E-6E6E-6E6E-6E6E-6E6E6E6E6E6E}
+		{28B28B28B-28B8-28B8-28B8-28B828B828B8} = {6E6E6E6E-6E6E-6E6E-6E6E-6E6E6E6E6E6E}
+		{29C29C29C-29C9-29C9-29C9-29C929C929C9} = {6E6E6E6E-6E6E-6E6E-6E6E-6E6E6E6E6E6E}
+		{30D30D30D-30D0-30D0-30D0-30D030D030D0} = {6E6E6E6E-6E6E-6E6E-6E6E-6E6E6E6E6E6E}
 	EndGlobalSection
 EndGlobal
