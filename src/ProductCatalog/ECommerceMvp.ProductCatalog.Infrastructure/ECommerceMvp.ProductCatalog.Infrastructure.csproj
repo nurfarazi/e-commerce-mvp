@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Shared\ECommerceMvp.Shared.Domain\ECommerceMvp.Shared.Domain.csproj" />
+    <ProjectReference Include="..\..\Shared\ECommerceMvp.Shared.Application\ECommerceMvp.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\Shared\ECommerceMvp.Shared.Infrastructure\ECommerceMvp.Shared.Infrastructure.csproj" />
+    <ProjectReference Include="..\ECommerceMvp.ProductCatalog.Domain\ECommerceMvp.ProductCatalog.Domain.csproj" />
+    <ProjectReference Include="..\ECommerceMvp.ProductCatalog.Application\ECommerceMvp.ProductCatalog.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MongoDB.Driver" Version="2.23.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

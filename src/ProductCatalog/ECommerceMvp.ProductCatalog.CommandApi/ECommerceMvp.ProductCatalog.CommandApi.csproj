@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ECommerceMvp.ProductCatalog.Application\ECommerceMvp.ProductCatalog.Application.csproj" />
+    <ProjectReference Include="..\ECommerceMvp.ProductCatalog.Infrastructure\ECommerceMvp.ProductCatalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Shared\ECommerceMvp.Shared.Application\ECommerceMvp.Shared.Application.csproj" />
+    <ProjectReference Include="..\..\Shared\ECommerceMvp.Shared.Infrastructure\ECommerceMvp.Shared.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="8.0.0" />
+    <PackageReference Include="RabbitMQ.Client" Version="6.8.1" />
+    <PackageReference Include="Serilog" Version="3.1.1" />
+    <PackageReference Include="Serilog.AspNetCore" Version="8.0.0" />
+  </ItemGroup>
+
+</Project>

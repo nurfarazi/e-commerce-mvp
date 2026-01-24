@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsTestProject>true</IsTestProject>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="xunit" Version="2.6.6" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.4" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.2" />
+    <PackageReference Include="Moq" Version="4.20.70" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\ProductCatalog\ECommerceMvp.ProductCatalog.Application\ECommerceMvp.ProductCatalog.Application.csproj" />
+    <ProjectReference Include="..\..\src\ProductCatalog\ECommerceMvp.ProductCatalog.Infrastructure\ECommerceMvp.ProductCatalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Shared\ECommerceMvp.Shared.Application\ECommerceMvp.Shared.Application.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,92 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34322.80
+MinimumVisualStudioVersion = 10.0.40219.0
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{1A1A1A1A-1A1A-1A1A-1A1A-1A1A1A1A1A1A}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{2B2B2B2B-2B2B-2B2B-2B2B-2B2B2B2B2B2B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{3C3C3C3C-3C3C-3C3C-3C3C-3C3C3C3C3C3C}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "ProductCatalog", "ProductCatalog", "{4D4D4D4D-4D4D-4D4D-4D4D-4D4D4D4D4D4D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Shared.Domain", "src\Shared\ECommerceMvp.Shared.Domain\ECommerceMvp.Shared.Domain.csproj", "{5E5E5E5E-5E5E-5E5E-5E5E-5E5E5E5E5E5E}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Shared.Application", "src\Shared\ECommerceMvp.Shared.Application\ECommerceMvp.Shared.Application.csproj", "{6F6F6F6F-6F6F-6F6F-6F6F-6F6F6F6F6F6F}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.Shared.Infrastructure", "src\Shared\ECommerceMvp.Shared.Infrastructure\ECommerceMvp.Shared.Infrastructure.csproj", "{7G7G7G7G-7G7G-7G7G-7G7G-7G7G7G7G7G7G}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.Domain", "src\ProductCatalog\ECommerceMvp.ProductCatalog.Domain\ECommerceMvp.ProductCatalog.Domain.csproj", "{8H8H8H8H-8H8H-8H8H-8H8H-8H8H8H8H8H8H}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.Application", "src\ProductCatalog\ECommerceMvp.ProductCatalog.Application\ECommerceMvp.ProductCatalog.Application.csproj", "{9I9I9I9I-9I9I-9I9I-9I9I-9I9I9I9I9I9I}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.Infrastructure", "src\ProductCatalog\ECommerceMvp.ProductCatalog.Infrastructure\ECommerceMvp.ProductCatalog.Infrastructure.csproj", "{10J10J10J-10J0-10J0-10J0-10J010J010J0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.CommandApi", "src\ProductCatalog\ECommerceMvp.ProductCatalog.CommandApi\ECommerceMvp.ProductCatalog.CommandApi.csproj", "{11K11K11K-11K1-11K1-11K1-11K111K111K1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.CommandHandler", "src\ProductCatalog\ECommerceMvp.ProductCatalog.CommandHandler\ECommerceMvp.ProductCatalog.CommandHandler.csproj", "{12L12L12L-12L2-12L2-12L2-12L212L212L2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.EventHandler", "src\ProductCatalog\ECommerceMvp.ProductCatalog.EventHandler\ECommerceMvp.ProductCatalog.EventHandler.csproj", "{13M13M13M-13M3-13M3-13M3-13M313M313M3}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.QueryApi", "src\ProductCatalog\ECommerceMvp.ProductCatalog.QueryApi\ECommerceMvp.ProductCatalog.QueryApi.csproj", "{14N14N14N-14N4-14N4-14N4-14N414N414N4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.Domain.Tests", "tests\ECommerceMvp.ProductCatalog.Domain.Tests\ECommerceMvp.ProductCatalog.Domain.Tests.csproj", "{15O15O15O-15O5-15O5-15O5-15O515O515O5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ECommerceMvp.ProductCatalog.Application.Tests", "tests\ECommerceMvp.ProductCatalog.Application.Tests\ECommerceMvp.ProductCatalog.Application.Tests.csproj", "{16P16P16P-16P6-16P6-16P6-16P616P616P6}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5E5E5E5E-5E5E-5E5E-5E5E-5E5E5E5E5E5E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5E5E5E5E-5E5E-5E5E-5E5E-5E5E5E5E5E5E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5E5E5E5E-5E5E-5E5E-5E5E-5E5E5E5E5E5E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5E5E5E5E-5E5E-5E5E-5E5E-5E5E-5E5E-5E5E5E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6F6F6F6F-6F6F-6F6F-6F6F-6F6F6F6F6F6F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6F6F6F6F-6F6F-6F6F-6F6F-6F6F6F6F6F6F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6F6F6F6F-6F6F-6F6F-6F6F-6F6F6F6F6F6F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6F6F6F6F-6F6F-6F6F-6F6F-6F6F6F6F6F6F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7G7G7G7G-7G7G-7G7G-7G7G-7G7G7G7G7G7G}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7G7G7G7G-7G7G-7G7G-7G7G-7G7G7G7G7G7G}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7G7G7G7G-7G7G-7G7G-7G7G-7G7G7G7G7G7G}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7G7G7G7G-7G7G-7G7G-7G7G-7G7G7G7G7G7G}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8H8H8H8H-8H8H-8H8H-8H8H-8H8H8H8H8H8H}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8H8H8H8H-8H8H-8H8H-8H8H-8H8H8H8H8H8H}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8H8H8H8H-8H8H-8H8H-8H8H-8H8H8H8H8H8H}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8H8H8H8H-8H8H-8H8H-8H8H-8H8H8H8H8H8H}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9I9I9I9I-9I9I-9I9I-9I9I-9I9I9I9I9I9I}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9I9I9I9I-9I9I-9I9I-9I9I-9I9I9I9I9I9I}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9I9I9I9I-9I9I-9I9I-9I9I-9I9I9I9I9I9I}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9I9I9I9I-9I9I-9I9I-9I9I-9I9I9I9I9I9I}.Release|Any CPU.Build.0 = Release|Any CPU
+		{10J10J10J-10J0-10J0-10J0-10J010J010J0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{10J10J10J-10J0-10J0-10J0-10J010J010J0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{10J10J10J-10J0-10J0-10J0-10J010J010J0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{10J10J10J-10J0-10J0-10J0-10J010J010J0}.Release|Any CPU.Build.0 = Release|Any CPU
+		{11K11K11K-11K1-11K1-11K1-11K111K111K1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11K11K11K-11K1-11K1-11K1-11K111K111K1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11K11K11K-11K1-11K1-11K1-11K111K111K1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11K11K11K-11K1-11K1-11K1-11K111K111K1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{12L12L12L-12L2-12L2-12L2-12L212L212L2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{12L12L12L-12L2-12L2-12L2-12L212L212L2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{12L12L12L-12L2-12L2-12L2-12L212L212L2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{12L12L12L-12L2-12L2-12L2-12L212L212L2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{13M13M13M-13M3-13M3-13M3-13M313M313M3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{13M13M13M-13M3-13M3-13M3-13M313M313M3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{13M13M13M-13M3-13M3-13M3-13M313M313M3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{13M13M13M-13M3-13M3-13M3-13M313M313M3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{14N14N14N-14N4-14N4-14N4-14N414N414N4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{14N14N14N-14N4-14N4-14N4-14N414N414N4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{14N14N14N-14N4-14N4-14N4-14N414N414N4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{14N14N14N-14N4-14N4-14N4-14N414N414N4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15O15O15O-15O5-15O5-15O5-15O515O515O5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15O15O15O-15O5-15O5-15O5-15O515O515O5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15O15O15O-15O5-15O5-15O5-15O515O515O5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15O15O15O-15O5-15O5-15O5-15O515O515O5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{16P16P16P-16P6-16P6-16P6-16P616P616P6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{16P16P16P-16P6-16P6-16P6-16P616P616P6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{16P16P16P-16P6-16P6-16P6-16P616P616P6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{16P16P16P-16P6-16P6-16P6-16P616P616P6}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
