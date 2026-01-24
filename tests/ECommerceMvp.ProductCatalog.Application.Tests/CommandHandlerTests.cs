@@ -2,6 +2,7 @@ using ECommerceMvp.ProductCatalog.Application;
 using ECommerceMvp.ProductCatalog.Domain;
 using ECommerceMvp.ProductCatalog.Infrastructure;
 using ECommerceMvp.Shared.Application;
+using ECommerceMvp.Shared.Domain;
 using Moq;
 using Xunit;
 using Microsoft.Extensions.Logging;
@@ -132,7 +133,7 @@ public class ActivateProductCommandHandlerTests
     public async Task HandleAsync_WithValidProductId_ShouldActivateProduct()
     {
         // Arrange
-        var product = Product.Create("PROD-001", "Test", "Desc", new Sku("SKU"), new Price(50));
+        var product = Product.Create("PROD-001", "SKU", "Test", 50, "Desc");
         product.Deactivate();
 
         _mockRepository.Setup(r => r.GetByIdAsync("PROD-001", It.IsAny<CancellationToken>()))

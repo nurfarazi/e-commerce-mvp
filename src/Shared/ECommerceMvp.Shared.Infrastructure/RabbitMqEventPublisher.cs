@@ -64,7 +64,10 @@ public class RabbitMqEventPublisher : IEventPublisher, IDisposable
         {
             foreach (var envelope in envelopes)
             {
-                var exchangeName = $"{envelope.Event.EventType.Split('.')[0]}.events";
+                // Extract bounded context from event type (e.g., "ECommerceMvp.ProductCatalog.Domain.ProductCreatedEvent" -> "ProductCatalog")
+                var eventTypeParts = envelope.Event.EventType.Split('.');
+                var boundedContext = eventTypeParts.Length > 1 ? eventTypeParts[1] : eventTypeParts[0];
+                var exchangeName = $"{boundedContext}.events";
                 var routingKey = envelope.Event.EventType;
 
                 // Declare fanout exchange
@@ -74,12 +77,16 @@ public class RabbitMqEventPublisher : IEventPublisher, IDisposable
                     durable: true,
                     autoDelete: false);
 
+                // Serialize payload separately with concrete type to preserve all properties
+                var payloadJson = JsonSerializer.Serialize(envelope.Event, envelope.Event.GetType());
+                using var payloadDoc = JsonDocument.Parse(payloadJson);
+
                 var messageBody = JsonSerializer.Serialize(new
                 {
                     EventId = envelope.Event.EventId,
                     EventType = envelope.Event.EventType,
                     EventVersion = envelope.Event.EventVersion,
-                    Payload = envelope.Event,
+                    Payload = payloadDoc.RootElement,
                     Metadata = new
                     {
                         CorrelationId = envelope.CorrelationId,
@@ -88,7 +95,7 @@ public class RabbitMqEventPublisher : IEventPublisher, IDisposable
                         UserId = envelope.UserId,
                         PublishedAt = DateTimeOffset.UtcNow
                     }
-                });
+                }, new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
 
                 var properties = _channel.CreateBasicProperties();
                 properties.Persistent = true;

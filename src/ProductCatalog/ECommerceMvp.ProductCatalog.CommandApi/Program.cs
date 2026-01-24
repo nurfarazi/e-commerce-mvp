@@ -23,7 +23,7 @@ var mongoOptions = new MongoDbOptions
 };
 
 var mongoClient = new MongoClient(mongoOptions.ConnectionString);
-builder.Services.AddSingleton(mongoClient);
+builder.Services.AddSingleton<IMongoClient>(mongoClient);
 builder.Services.AddSingleton(mongoOptions);
 
 // RabbitMQ

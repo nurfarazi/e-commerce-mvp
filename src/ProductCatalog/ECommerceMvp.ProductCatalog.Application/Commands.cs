@@ -5,17 +5,20 @@ using Microsoft.Extensions.Logging;
 
 namespace ECommerceMvp.ProductCatalog.Application;
 
+#region CreateProductCommand
+
 /// <summary>
 /// Command: Create a new product.
+/// Command: CreateProductCommand { sku, name, price, description? }
 /// </summary>
 public class CreateProductCommand : ICommand<CreateProductResponse>
 {
     public string ProductId { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
     public string Sku { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
     public decimal Price { get; set; }
     public string Currency { get; set; } = "USD";
+    public string? Description { get; set; }
 }
 
 public class CreateProductResponse
@@ -53,11 +56,14 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand,
     {
         try
         {
-            _logger.LogInformation("Creating product {ProductId}", command.ProductId);
+            _logger.LogInformation("Creating product {ProductId} with SKU {Sku}", command.ProductId, command.Sku);
 
             // Validate command
             if (string.IsNullOrWhiteSpace(command.ProductId))
                 return new CreateProductResponse { Success = false, Error = "ProductId is required" };
+
+            if (string.IsNullOrWhiteSpace(command.Sku))
+                return new CreateProductResponse { Success = false, Error = "SKU is required" };
 
             if (string.IsNullOrWhiteSpace(command.Name))
                 return new CreateProductResponse { Success = false, Error = "Name is required" };
@@ -66,14 +72,14 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand,
                 return new CreateProductResponse { Success = false, Error = "Price cannot be negative" };
 
             // Create product aggregate
-            var sku = new Sku(command.Sku);
-            var price = new Price(command.Price, command.Currency);
-            var product = Product.Create(command.ProductId, command.Name, command.Description, sku, price);
+            var product = Product.Create(
+                command.ProductId,
+                command.Sku,
+                command.Name,
+                command.Price,
+                command.Description);
 
-            // Save aggregate
-            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
-
-            // Publish events
+            // Capture events BEFORE saving (SaveAsync clears them)
             var envelopes = product.UncommittedEvents
                 .Select(evt => new DomainEventEnvelope(
                     evt,
@@ -83,11 +89,20 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand,
                     null))
                 .ToList();
 
+            // Save aggregate
+            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
+
+            // Publish events
             await _eventPublisher.PublishAsync(envelopes, cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation("Product {ProductId} created successfully", command.ProductId);
 
             return new CreateProductResponse { ProductId = command.ProductId, Success = true };
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid product creation request: {ProductId}", command.ProductId);
+            return new CreateProductResponse { Success = false, Error = ex.Message };
         }
         catch (Exception ex)
         {
@@ -97,8 +112,180 @@ public class CreateProductCommandHandler : ICommandHandler<CreateProductCommand,
     }
 }
 
+#endregion
+
+#region UpdateProductDetailsCommand
+
+/// <summary>
+/// Command: Update product details (name and description).
+/// Command: UpdateProductDetailsCommand { productId, name, description? }
+/// </summary>
+public class UpdateProductDetailsCommand : ICommand<UpdateProductDetailsResponse>
+{
+    public string ProductId { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+}
+
+public class UpdateProductDetailsResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Handler for UpdateProductDetailsCommand.
+/// </summary>
+public class UpdateProductDetailsCommandHandler : ICommandHandler<UpdateProductDetailsCommand, UpdateProductDetailsResponse>
+{
+    private readonly IRepository<Product, string> _productRepository;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ILogger<UpdateProductDetailsCommandHandler> _logger;
+
+    public UpdateProductDetailsCommandHandler(
+        IRepository<Product, string> productRepository,
+        IEventPublisher eventPublisher,
+        ILogger<UpdateProductDetailsCommandHandler> logger)
+    {
+        _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
+        _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public async Task<UpdateProductDetailsResponse> HandleAsync(
+        UpdateProductDetailsCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Updating product details for {ProductId}", command.ProductId);
+
+            if (string.IsNullOrWhiteSpace(command.ProductId))
+                return new UpdateProductDetailsResponse { Success = false, Error = "ProductId is required" };
+
+            if (string.IsNullOrWhiteSpace(command.Name))
+                return new UpdateProductDetailsResponse { Success = false, Error = "Name is required" };
+
+            var product = await _productRepository.GetByIdAsync(command.ProductId, cancellationToken).ConfigureAwait(false);
+            if (product == null)
+                return new UpdateProductDetailsResponse { Success = false, Error = "Product not found" };
+
+            product.UpdateDetails(command.Name, command.Description);
+            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
+
+            var envelopes = product.UncommittedEvents
+                .Select(evt => new DomainEventEnvelope(evt, Guid.NewGuid().ToString()))
+                .ToList();
+
+            await _eventPublisher.PublishAsync(envelopes, cancellationToken).ConfigureAwait(false);
+
+            _logger.LogInformation("Product {ProductId} details updated successfully", command.ProductId);
+            return new UpdateProductDetailsResponse { Success = true };
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid update request for product {ProductId}", command.ProductId);
+            return new UpdateProductDetailsResponse { Success = false, Error = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating product {ProductId} details", command.ProductId);
+            return new UpdateProductDetailsResponse { Success = false, Error = ex.Message };
+        }
+    }
+}
+
+#endregion
+
+#region ChangeProductPriceCommand
+
+/// <summary>
+/// Command: Change product price.
+/// Command: ChangeProductPriceCommand { productId, newPrice }
+/// </summary>
+public class ChangeProductPriceCommand : ICommand<ChangeProductPriceResponse>
+{
+    public string ProductId { get; set; } = string.Empty;
+    public decimal NewPrice { get; set; }
+    public string Currency { get; set; } = "USD";
+}
+
+public class ChangeProductPriceResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Handler for ChangeProductPriceCommand.
+/// </summary>
+public class ChangeProductPriceCommandHandler : ICommandHandler<ChangeProductPriceCommand, ChangeProductPriceResponse>
+{
+    private readonly IRepository<Product, string> _productRepository;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ILogger<ChangeProductPriceCommandHandler> _logger;
+
+    public ChangeProductPriceCommandHandler(
+        IRepository<Product, string> productRepository,
+        IEventPublisher eventPublisher,
+        ILogger<ChangeProductPriceCommandHandler> logger)
+    {
+        _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
+        _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public async Task<ChangeProductPriceResponse> HandleAsync(
+        ChangeProductPriceCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Changing price for product {ProductId} to {NewPrice} {Currency}",
+                command.ProductId, command.NewPrice, command.Currency);
+
+            if (string.IsNullOrWhiteSpace(command.ProductId))
+                return new ChangeProductPriceResponse { Success = false, Error = "ProductId is required" };
+
+            if (command.NewPrice < 0)
+                return new ChangeProductPriceResponse { Success = false, Error = "Price cannot be negative" };
+
+            var product = await _productRepository.GetByIdAsync(command.ProductId, cancellationToken).ConfigureAwait(false);
+            if (product == null)
+                return new ChangeProductPriceResponse { Success = false, Error = "Product not found" };
+
+            product.ChangePrice(command.NewPrice, command.Currency);
+            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
+
+            var envelopes = product.UncommittedEvents
+                .Select(evt => new DomainEventEnvelope(evt, Guid.NewGuid().ToString()))
+                .ToList();
+
+            await _eventPublisher.PublishAsync(envelopes, cancellationToken).ConfigureAwait(false);
+
+            _logger.LogInformation("Product {ProductId} price changed successfully", command.ProductId);
+            return new ChangeProductPriceResponse { Success = true };
+        }
+        catch (ArgumentException ex)
+        {
+            _logger.LogWarning(ex, "Invalid price change request for product {ProductId}", command.ProductId);
+            return new ChangeProductPriceResponse { Success = false, Error = ex.Message };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error changing price for product {ProductId}", command.ProductId);
+            return new ChangeProductPriceResponse { Success = false, Error = ex.Message };
+        }
+    }
+}
+
+#endregion
+
+#region ActivateProductCommand
+
 /// <summary>
 /// Command: Activate a product.
+/// Command: ActivateProductCommand { productId }
 /// </summary>
 public class ActivateProductCommand : ICommand<ActivateProductResponse>
 {
@@ -138,17 +325,21 @@ public class ActivateProductCommandHandler : ICommandHandler<ActivateProductComm
         {
             _logger.LogInformation("Activating product {ProductId}", command.ProductId);
 
+            if (string.IsNullOrWhiteSpace(command.ProductId))
+                return new ActivateProductResponse { Success = false, Error = "ProductId is required" };
+
             var product = await _productRepository.GetByIdAsync(command.ProductId, cancellationToken).ConfigureAwait(false);
             if (product == null)
                 return new ActivateProductResponse { Success = false, Error = "Product not found" };
 
             product.Activate();
-            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
 
+            // Capture events BEFORE saving (SaveAsync clears them)
             var envelopes = product.UncommittedEvents
                 .Select(evt => new DomainEventEnvelope(evt, Guid.NewGuid().ToString()))
                 .ToList();
 
+            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
             await _eventPublisher.PublishAsync(envelopes, cancellationToken).ConfigureAwait(false);
 
             _logger.LogInformation("Product {ProductId} activated successfully", command.ProductId);
@@ -161,3 +352,80 @@ public class ActivateProductCommandHandler : ICommandHandler<ActivateProductComm
         }
     }
 }
+
+#endregion
+
+#region DeactivateProductCommand
+
+/// <summary>
+/// Command: Deactivate a product.
+/// Command: DeactivateProductCommand { productId }
+/// </summary>
+public class DeactivateProductCommand : ICommand<DeactivateProductResponse>
+{
+    public string ProductId { get; set; } = string.Empty;
+}
+
+public class DeactivateProductResponse
+{
+    public bool Success { get; set; }
+    public string? Error { get; set; }
+}
+
+/// <summary>
+/// Handler for DeactivateProductCommand.
+/// </summary>
+public class DeactivateProductCommandHandler : ICommandHandler<DeactivateProductCommand, DeactivateProductResponse>
+{
+    private readonly IRepository<Product, string> _productRepository;
+    private readonly IEventPublisher _eventPublisher;
+    private readonly ILogger<DeactivateProductCommandHandler> _logger;
+
+    public DeactivateProductCommandHandler(
+        IRepository<Product, string> productRepository,
+        IEventPublisher eventPublisher,
+        ILogger<DeactivateProductCommandHandler> logger)
+    {
+        _productRepository = productRepository ?? throw new ArgumentNullException(nameof(productRepository));
+        _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+    }
+
+    public async Task<DeactivateProductResponse> HandleAsync(
+        DeactivateProductCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Deactivating product {ProductId}", command.ProductId);
+
+            if (string.IsNullOrWhiteSpace(command.ProductId))
+                return new DeactivateProductResponse { Success = false, Error = "ProductId is required" };
+
+            var product = await _productRepository.GetByIdAsync(command.ProductId, cancellationToken).ConfigureAwait(false);
+            if (product == null)
+                return new DeactivateProductResponse { Success = false, Error = "Product not found" };
+
+            product.Deactivate();
+
+            // Capture events BEFORE saving (SaveAsync clears them)
+            var envelopes = product.UncommittedEvents
+                .Select(evt => new DomainEventEnvelope(evt, Guid.NewGuid().ToString()))
+                .ToList();
+
+            await _productRepository.SaveAsync(product, cancellationToken).ConfigureAwait(false);
+            await _eventPublisher.PublishAsync(envelopes, cancellationToken).ConfigureAwait(false);
+
+            _logger.LogInformation("Product {ProductId} deactivated successfully", command.ProductId);
+            return new DeactivateProductResponse { Success = true };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deactivating product {ProductId}", command.ProductId);
+            return new DeactivateProductResponse { Success = false, Error = ex.Message };
+        }
+    }
+}
+
+#endregion
+

@@ -16,12 +16,12 @@ public class ProductTests
         var price = new Price(99.99m, "USD");
 
         // Act
-        var product = Product.Create(productId, name, description, sku, price);
+        var product = Product.Create(productId, sku.Value, name, price.Amount, description);
 
         // Assert
         Assert.Equal(productId, product.Id);
-        Assert.Equal(name, product.Name);
-        Assert.Equal(description, product.Description);
+        Assert.Equal(name, product.Name.Value);
+        Assert.Equal(description, product.Description.Value);
         Assert.Equal(sku, product.Sku);
         Assert.Equal(price, product.Price);
         Assert.True(product.IsActive);
@@ -34,7 +34,7 @@ public class ProductTests
     {
         // Act & Assert
         Assert.Throws<ArgumentException>(() =>
-            Product.Create(string.Empty, "Name", "Desc", new Sku("SKU"), new Price(10)));
+            Product.Create(string.Empty, "SKU", "Name", 10, "Desc"));
     }
 
     [Fact]
@@ -42,7 +42,7 @@ public class ProductTests
     {
         // Act & Assert
         Assert.Throws<ArgumentException>(() =>
-            Product.Create("ID", null!, "Desc", new Sku("SKU"), new Price(10)));
+            Product.Create("ID", "SKU", null!, 10, "Desc"));
     }
 
     [Fact]
@@ -50,14 +50,14 @@ public class ProductTests
     {
         // Act & Assert
         Assert.Throws<ArgumentException>(() =>
-            Product.Create("ID", "Name", "Desc", new Sku("SKU"), new Price(-10)));
+            Product.Create("ID", "SKU", "Name", -10, "Desc"));
     }
 
     [Fact]
     public void Activate_WhenInactive_ShouldActivateAndPublishEvent()
     {
         // Arrange
-        var product = Product.Create("PROD-001", "Test", "Desc", new Sku("SKU"), new Price(50));
+        var product = Product.Create("PROD-001", "SKU", "Test", 50, "Desc");
         product.ClearUncommittedEvents();
         product.Deactivate();
         product.ClearUncommittedEvents();
@@ -75,7 +75,7 @@ public class ProductTests
     public void Activate_WhenAlreadyActive_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var product = Product.Create("PROD-001", "Test", "Desc", new Sku("SKU"), new Price(50));
+        var product = Product.Create("PROD-001", "SKU", "Test", 50, "Desc");
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() => product.Activate());
@@ -85,7 +85,7 @@ public class ProductTests
     public void Deactivate_WhenActive_ShouldDeactivateAndPublishEvent()
     {
         // Arrange
-        var product = Product.Create("PROD-001", "Test", "Desc", new Sku("SKU"), new Price(50));
+        var product = Product.Create("PROD-001", "SKU", "Test", 50, "Desc");
         product.ClearUncommittedEvents();
 
         // Act
@@ -101,32 +101,33 @@ public class ProductTests
     public void Update_WithValidData_ShouldUpdateAndPublishEvent()
     {
         // Arrange
-        var product = Product.Create("PROD-001", "Original", "Desc", new Sku("SKU"), new Price(50));
+        var product = Product.Create("PROD-001", "SKU", "Original", 50, "Desc");
         product.ClearUncommittedEvents();
 
         var newPrice = new Price(75.50m, "USD");
 
         // Act
-        product.Update("Updated Name", "Updated Desc", newPrice);
+        product.UpdateDetails("Updated Name", "Updated Desc");
+        product.ChangePrice(newPrice.Amount, newPrice.Currency);
 
         // Assert
-        Assert.Equal("Updated Name", product.Name);
-        Assert.Equal("Updated Desc", product.Description);
+        Assert.Equal("Updated Name", product.Name.Value);
+        Assert.Equal("Updated Desc", product.Description.Value);
         Assert.Equal(newPrice, product.Price);
         Assert.NotEmpty(product.UncommittedEvents);
-        Assert.IsType<ProductUpdatedEvent>(product.UncommittedEvents.First());
+        Assert.Contains(product.UncommittedEvents, e => e is ProductDetailsUpdatedEvent || e is ProductPriceChangedEvent);
     }
 
     [Fact]
     public void Update_WhenInactive_ShouldThrowInvalidOperationException()
     {
         // Arrange
-        var product = Product.Create("PROD-001", "Test", "Desc", new Sku("SKU"), new Price(50));
+        var product = Product.Create("PROD-001", "SKU", "Test", 50, "Desc");
         product.Deactivate();
 
         // Act & Assert
         Assert.Throws<InvalidOperationException>(() =>
-            product.Update("Name", "Desc", new Price(100)));
+            product.UpdateDetails("Name", "Desc"));
     }
 }
 

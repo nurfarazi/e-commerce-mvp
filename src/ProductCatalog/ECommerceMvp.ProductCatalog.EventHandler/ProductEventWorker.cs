@@ -58,7 +58,7 @@ public class ProductEventWorker : BackgroundService
             Port = _rabbitMqOptions.Port,
             UserName = _rabbitMqOptions.UserName,
             Password = _rabbitMqOptions.Password,
-            DispatchConsumersAsync = false,
+            DispatchConsumersAsync = true,
             AutomaticRecoveryEnabled = true,
             NetworkRecoveryInterval = TimeSpan.FromSeconds(10)
         };
@@ -95,7 +95,7 @@ public class ProductEventWorker : BackgroundService
         if (_channel == null)
             throw new InvalidOperationException("Channel not initialized");
 
-        var consumer = new EventingBasicConsumer(_channel);
+        var consumer = new AsyncEventingBasicConsumer(_channel);
         consumer.Received += async (model, ea) =>
         {
             try
@@ -105,39 +105,50 @@ public class ProductEventWorker : BackgroundService
 
                 _logger.LogDebug("Received event: {Json}", json);
 
-                // Deserialize the event
+                // Deserialize the event envelope
                 using var jsonDoc = JsonDocument.Parse(json);
                 var root = jsonDoc.RootElement;
-                var eventType = root.GetProperty("eventType").GetString();
-                var correlationId = root.GetProperty("correlationId").GetString() ?? "unknown";
-                var eventData = root.GetProperty("eventData");
+                var eventTypeFullName = root.GetProperty("eventType").GetString() ?? "";
+                var correlationId = root.GetProperty("metadata").GetProperty("correlationId").GetString() ?? "unknown";
+                var payloadElement = root.GetProperty("payload");
+
+                // Extract simple event name from full type name (e.g., "ECommerceMvp.ProductCatalog.Domain.ProductCreatedEvent" -> "ProductCreated")
+                var eventTypeName = eventTypeFullName.Split('.').Last().Replace("Event", "");
 
                 // Use a scope to get services
                 using var scope = _serviceProvider.CreateAsyncScope();
                 var projectionWriter = scope.ServiceProvider.GetRequiredService<IProductProjectionWriter>();
 
                 // Process event based on type
-                switch (eventType)
+                switch (eventTypeName)
                 {
                     case "ProductCreated":
                         {
-                            var @event = JsonSerializer.Deserialize<ProductCreatedEvent>(eventData.GetRawText())
+                            var @event = JsonSerializer.Deserialize<ProductCreatedEvent>(payloadElement.GetRawText())
                                 ?? throw new InvalidOperationException("Failed to deserialize ProductCreatedEvent");
                             await projectionWriter.HandleProductCreatedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
                             _logger.LogInformation("Processed ProductCreated event for {ProductId}", @event.ProductId);
                             break;
                         }
-                    case "ProductUpdated":
+                    case "ProductDetailsUpdated":
                         {
-                            var @event = JsonSerializer.Deserialize<ProductUpdatedEvent>(eventData.GetRawText())
-                                ?? throw new InvalidOperationException("Failed to deserialize ProductUpdatedEvent");
-                            await projectionWriter.HandleProductUpdatedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
-                            _logger.LogInformation("Processed ProductUpdated event for {ProductId}", @event.ProductId);
+                            var @event = JsonSerializer.Deserialize<ProductDetailsUpdatedEvent>(payloadElement.GetRawText())
+                                ?? throw new InvalidOperationException("Failed to deserialize ProductDetailsUpdatedEvent");
+                            await projectionWriter.HandleProductDetailsUpdatedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
+                            _logger.LogInformation("Processed ProductDetailsUpdated event for {ProductId}", @event.ProductId);
+                            break;
+                        }
+                    case "ProductPriceChanged":
+                        {
+                            var @event = JsonSerializer.Deserialize<ProductPriceChangedEvent>(payloadElement.GetRawText())
+                                ?? throw new InvalidOperationException("Failed to deserialize ProductPriceChangedEvent");
+                            await projectionWriter.HandleProductPriceChangedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
+                            _logger.LogInformation("Processed ProductPriceChanged event for {ProductId}", @event.ProductId);
                             break;
                         }
                     case "ProductActivated":
                         {
-                            var @event = JsonSerializer.Deserialize<ProductActivatedEvent>(eventData.GetRawText())
+                            var @event = JsonSerializer.Deserialize<ProductActivatedEvent>(payloadElement.GetRawText())
                                 ?? throw new InvalidOperationException("Failed to deserialize ProductActivatedEvent");
                             await projectionWriter.HandleProductActivatedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
                             _logger.LogInformation("Processed ProductActivated event for {ProductId}", @event.ProductId);
@@ -145,14 +156,14 @@ public class ProductEventWorker : BackgroundService
                         }
                     case "ProductDeactivated":
                         {
-                            var @event = JsonSerializer.Deserialize<ProductDeactivatedEvent>(eventData.GetRawText())
+                            var @event = JsonSerializer.Deserialize<ProductDeactivatedEvent>(payloadElement.GetRawText())
                                 ?? throw new InvalidOperationException("Failed to deserialize ProductDeactivatedEvent");
                             await projectionWriter.HandleProductDeactivatedAsync(@event, correlationId, cancellationToken).ConfigureAwait(false);
                             _logger.LogInformation("Processed ProductDeactivated event for {ProductId}", @event.ProductId);
                             break;
                         }
                     default:
-                        _logger.LogWarning("Unknown event type: {EventType}", eventType);
+                        _logger.LogWarning("Unknown event type: {EventTypeName}", eventTypeName);
                         break;
                 }
 

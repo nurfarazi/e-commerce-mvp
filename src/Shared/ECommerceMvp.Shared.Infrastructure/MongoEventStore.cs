@@ -80,7 +80,7 @@ public class MongoEventStore : IEventStore
                 EventId = evt.EventId,
                 EventType = evt.EventType,
                 EventVersion = evt.EventVersion,
-                Payload = System.Text.Json.JsonSerializer.Serialize(evt),
+                Payload = System.Text.Json.JsonSerializer.Serialize(evt, evt.GetType()),
                 CorrelationId = correlationId,
                 CausationId = causationId,
                 TenantId = tenantId,

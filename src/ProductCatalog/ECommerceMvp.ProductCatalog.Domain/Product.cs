@@ -3,7 +3,88 @@ using ECommerceMvp.Shared.Domain;
 namespace ECommerceMvp.ProductCatalog.Domain;
 
 /// <summary>
+/// Value object for product ID (unique identifier).
+/// </summary>
+public class ProductId : ValueObject
+{
+    public string Value { get; }
+
+    public ProductId(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Product ID cannot be empty", nameof(value));
+
+        Value = value;
+    }
+
+    public override IEnumerable<object?> GetEqualityComponents()
+    {
+        yield return Value;
+    }
+
+    public override string ToString() => Value;
+
+    public static implicit operator string(ProductId productId) => productId.Value;
+    public static implicit operator ProductId(string value) => new(value);
+}
+
+/// <summary>
+/// Value object for product name.
+/// Constraints: Required, minimum length 2.
+/// </summary>
+public class ProductName : ValueObject
+{
+    private const int MinLength = 2;
+
+    public string Value { get; }
+
+    public ProductName(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("Product name cannot be empty", nameof(value));
+        if (value.Length < MinLength)
+            throw new ArgumentException($"Product name must be at least {MinLength} characters", nameof(value));
+
+        Value = value.Trim();
+    }
+
+    public override IEnumerable<object?> GetEqualityComponents()
+    {
+        yield return Value;
+    }
+
+    public override string ToString() => Value;
+
+    public static implicit operator string(ProductName name) => name.Value;
+    public static implicit operator ProductName(string value) => new(value);
+}
+
+/// <summary>
+/// Value object for product description.
+/// </summary>
+public class ProductDescription : ValueObject
+{
+    public string Value { get; }
+
+    public ProductDescription(string value)
+    {
+        Value = string.IsNullOrWhiteSpace(value) ? string.Empty : value.Trim();
+    }
+
+    public override IEnumerable<object?> GetEqualityComponents()
+    {
+        yield return Value;
+    }
+
+    public override string ToString() => Value;
+
+    public static implicit operator string(ProductDescription description) => description.Value;
+    public static implicit operator ProductDescription(string value) => new(value);
+}
+
+/// <summary>
 /// Value object for product price.
+/// Constraints: Price >= 0.
 /// </summary>
 public class Price : ValueObject
 {
@@ -32,6 +113,7 @@ public class Price : ValueObject
 
 /// <summary>
 /// Value object for product SKU (Stock Keeping Unit).
+/// Constraints: Unique and immutable after creation.
 /// </summary>
 public class Sku : ValueObject
 {
@@ -55,6 +137,12 @@ public class Sku : ValueObject
 
 /// <summary>
 /// Product aggregate root in the ProductCatalog bounded context.
+/// 
+/// Invariants:
+/// - SKU is unique and immutable after creation
+/// - Price >= 0
+/// - Name required, min length 2
+/// - Only Active products can be sold/ordered
 /// </summary>
 public class Product : AggregateRoot<string>
 {
@@ -62,39 +150,39 @@ public class Product : AggregateRoot<string>
     {
     }
 
-    public string Name { get; private set; } = string.Empty;
-    public string Description { get; private set; } = string.Empty;
+    public ProductName Name { get; private set; } = null!;
+    public ProductDescription Description { get; private set; } = null!;
     public Sku Sku { get; private set; } = null!;
     public Price Price { get; private set; } = null!;
     public bool IsActive { get; private set; }
 
     /// <summary>
     /// Create a new product in the catalog.
+    /// Behavior: CreateProduct(sku, name, price, description)
     /// </summary>
-    public static Product Create(string id, string name, string description, Sku sku, Price price)
+    public static Product Create(string id, string sku, string name, decimal price, string? description = null)
     {
         if (string.IsNullOrWhiteSpace(id))
             throw new ArgumentException("Product ID cannot be empty", nameof(id));
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Product name cannot be empty", nameof(name));
-        if (sku == null)
-            throw new ArgumentNullException(nameof(sku));
-        if (price == null)
-            throw new ArgumentNullException(nameof(price));
+
+        var skuVO = new Sku(sku);
+        var nameVO = new ProductName(name);
+        var priceVO = new Price(price);
+        var descriptionVO = new ProductDescription(description ?? string.Empty);
 
         var product = new Product(id);
-        product.AppendEvent(new ProductCreatedEvent
+        var @event = new ProductCreatedEvent
         {
             ProductId = id,
-            Name = name,
-            Description = description,
-            Sku = sku.Value,
-            Price = price.Amount,
-            Currency = price.Currency
-        });
+            Sku = skuVO.Value,
+            Name = nameVO.Value,
+            Price = priceVO.Amount,
+            Description = descriptionVO.Value,
+            Currency = priceVO.Currency
+        };
 
-        // Apply event to set state
-        product.ApplyEvent(product.UncommittedEvents.First());
+        product.AppendEvent(@event);
+        product.ApplyEvent(@event);
 
         return product;
     }
@@ -108,25 +196,46 @@ public class Product : AggregateRoot<string>
     }
 
     /// <summary>
-    /// Update product information.
+    /// Update product details (name and description).
+    /// Behavior: UpdateDetails(name, description)
     /// </summary>
-    public void Update(string name, string description, Price price)
+    public void UpdateDetails(string name, string? description = null)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Product name cannot be empty", nameof(name));
-        if (price == null)
-            throw new ArgumentNullException(nameof(price));
+        var newName = new ProductName(name);
+        var newDescription = new ProductDescription(description ?? string.Empty);
 
         if (!IsActive)
             throw new InvalidOperationException("Cannot update an inactive product");
 
-        var @event = new ProductUpdatedEvent
+        var @event = new ProductDetailsUpdatedEvent
         {
             ProductId = Id,
-            Name = name,
-            Description = description,
-            Price = price.Amount,
-            Currency = price.Currency
+            Name = newName.Value,
+            Description = newDescription.Value
+        };
+
+        AppendEvent(@event);
+        ApplyEvent(@event);
+    }
+
+    /// <summary>
+    /// Change the product price.
+    /// Behavior: ChangePrice(newPrice)
+    /// </summary>
+    public void ChangePrice(decimal newPrice, string currency = "USD")
+    {
+        var newPriceVO = new Price(newPrice, currency);
+
+        if (!IsActive)
+            throw new InvalidOperationException("Cannot change price of an inactive product");
+
+        var @event = new ProductPriceChangedEvent
+        {
+            ProductId = Id,
+            OldPrice = Price.Amount,
+            NewPrice = newPriceVO.Amount,
+            OldCurrency = Price.Currency,
+            NewCurrency = newPriceVO.Currency
         };
 
         AppendEvent(@event);
@@ -135,6 +244,7 @@ public class Product : AggregateRoot<string>
 
     /// <summary>
     /// Activate the product in the catalog.
+    /// Behavior: Activate()
     /// </summary>
     public void Activate()
     {
@@ -148,6 +258,7 @@ public class Product : AggregateRoot<string>
 
     /// <summary>
     /// Deactivate the product from the catalog.
+    /// Behavior: Deactivate()
     /// </summary>
     public void Deactivate()
     {
@@ -164,17 +275,20 @@ public class Product : AggregateRoot<string>
         switch (@event)
         {
             case ProductCreatedEvent created:
-                Name = created.Name;
-                Description = created.Description;
+                Name = new ProductName(created.Name);
+                Description = new ProductDescription(created.Description);
                 Sku = new Sku(created.Sku);
                 Price = new Price(created.Price, created.Currency);
                 IsActive = true;
                 break;
 
-            case ProductUpdatedEvent updated:
-                Name = updated.Name;
-                Description = updated.Description;
-                Price = new Price(updated.Price, updated.Currency);
+            case ProductDetailsUpdatedEvent updated:
+                Name = new ProductName(updated.Name);
+                Description = new ProductDescription(updated.Description);
+                break;
+
+            case ProductPriceChangedEvent priceChanged:
+                Price = new Price(priceChanged.NewPrice, priceChanged.NewCurrency);
                 break;
 
             case ProductActivatedEvent:
